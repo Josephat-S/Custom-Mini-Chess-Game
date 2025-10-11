@@ -6,7 +6,7 @@ The Mini-Chess Game project is a simplified, educational chess system designed t
 
 Requirements and system scope defined
 
-Database design and ER diagram completed
+db design and ER diagram completed
 
 GitHub repository prepared for documentation and future implementation
 
@@ -24,7 +24,7 @@ Clementine Nabayo
 
 ## ⚙️ Technologies (Planned)
 
-Oracle Database – for data storage and management
+Oracle db – for data storage and management
 
 Java – for backend game logic
 

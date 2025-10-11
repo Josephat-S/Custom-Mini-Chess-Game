@@ -3,5 +3,5 @@ module Mini.chess.game {
     requires javafx.controls;
     requires javafx.graphics;
 
-    opens sample;
+    opens GUI;
 }
