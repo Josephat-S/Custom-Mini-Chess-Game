@@ -1,5 +1,7 @@
 package Models;
 
+import java.util.InputMismatchException;
+
 public class Board {
     private Piece[][] board = new Piece[5][5];
 
@@ -41,7 +43,7 @@ public class Board {
         System.out.println("=========================");
     }
 
-    public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol) {
+    public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol) throws ArrayIndexOutOfBoundsException, InputMismatchException {
         Piece piece = board[fromRow][fromCol];
         if (piece == null) {
             System.out.println("No piece at that position!");
