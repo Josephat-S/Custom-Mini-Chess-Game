@@ -1,11 +1,26 @@
+/**
+ * Main entry point for the Mini Chess Game application.
+ * This package contains the main game loop and core game mechanics.
+ */
 package mini.chess.game;
 
 import java.util.InputMismatchException;
 import java.util.Scanner;
 import Models.Board;
 
+/**
+ * Main class that handles the game loop and player interactions.
+ * Manages the game flow, player turns, and game state.
+ */
 public class Main {
-    public static void main(String[] args) {
+    /**
+     * Main game loop that handles player moves and game state.
+     * Manages turn-based gameplay, move validation, and game ending conditions.
+     *
+     * @param args Command line arguments (not used)
+     */
+    static void main(String[] args) {
+        // Initialize the game board
         Board board = new Board();
         board.displayBoard();
 

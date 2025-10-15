@@ -1,14 +1,31 @@
+/**
+ * Represents the game board for the Mini Chess game.
+ * Manages the 5x5 board state, piece movements, and game rules.
+ */
 package Models;
 
 import java.util.InputMismatchException;
 
+/**
+ * Board class handles the game board state and game logic.
+ * Includes methods for piece movement, game state validation,
+ * and win condition checking.
+ */
 public class Board {
+    /** The game board represented as a 5x5 grid of pieces */
     private Piece[][] board = new Piece[5][5];
 
+    /**
+     * Constructor initializes a new game board with starting piece positions.
+     */
     public Board() {
         initializeBoard();
     }
 
+    /**
+     * Initializes the board with the starting positions of all pieces.
+     * Places Leaders and Soldiers for both players in their initial positions.
+     */
     public void initializeBoard() {
         board[4][2] = new Leader(4, 2, "Player1");
         board[3][1] = new Soldier(3, 1, "Player1");
