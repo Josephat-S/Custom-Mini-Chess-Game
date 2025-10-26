@@ -2,7 +2,7 @@
  * Handles database operations for the Mini Chess game.
  * This class implements CRUD operations for game data persistence.
  */
-package db;
+package mini.chess.game.db;
 
 /**
  * DBOperations class implements database operations including:

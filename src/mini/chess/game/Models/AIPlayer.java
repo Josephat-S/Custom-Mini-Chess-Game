@@ -2,7 +2,7 @@
  * Represents an AI player in the Mini Chess game.
  * This class can implement computer opponent behavior.
  */
-package Models;
+package mini.chess.game.Models;
 
 /**
  * AIPlayer class can implement computer opponent functionality including:

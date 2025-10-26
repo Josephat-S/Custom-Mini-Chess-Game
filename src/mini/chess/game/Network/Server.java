@@ -2,7 +2,7 @@
  * Implements the server-side networking functionality.
  * This class handles multiplayer game session management.
  */
-package Network;
+package mini.chess.game.Network;
 
 /**
  * Server class manages multiplayer game hosting including:

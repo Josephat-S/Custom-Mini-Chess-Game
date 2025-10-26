@@ -2,7 +2,7 @@
  * Represents the Soldier piece in the Mini Chess game.
  * The Soldier is similar to a Pawn in traditional chess, but with simplified movement.
  */
-package Models;
+package mini.chess.game.Models;
 
 /**
  * Soldier class implements the movement rules and behavior for the Soldier piece.

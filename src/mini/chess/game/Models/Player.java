@@ -2,7 +2,7 @@
  * Represents a player in the Mini Chess game.
  * Can be used to store player information and statistics.
  */
-package Models;
+package mini.chess.game.Models;
 
 /**
  * Player class can be used to manage player-related functionality including:

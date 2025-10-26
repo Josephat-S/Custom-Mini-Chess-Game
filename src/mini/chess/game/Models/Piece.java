@@ -2,7 +2,7 @@
  * Base class for all chess pieces in the game.
  * Provides common functionality and properties for game pieces.
  */
-package Models;
+package mini.chess.game.Models;
 
 /**
  * Abstract base class that defines the common properties and behaviors

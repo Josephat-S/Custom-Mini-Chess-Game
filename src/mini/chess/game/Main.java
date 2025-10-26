@@ -6,7 +6,7 @@ package mini.chess.game;
 
 import java.util.InputMismatchException;
 import java.util.Scanner;
-import Models.Board;
+import mini.chess.game.Models.Board;
 
 /**
  * Main class that handles the game loop and player interactions.

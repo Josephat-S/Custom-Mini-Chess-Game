@@ -2,7 +2,7 @@
  * Provides the low-level drawing functionality for the chess board.
  * This class handles the actual rendering of board elements.
  */
-package GUI;
+package mini.chess.game.GUI;
 
 /**
  * BoardCanvas class handles the direct drawing operations including:

@@ -2,7 +2,7 @@
  * Represents the Leader piece in the Mini Chess game.
  * The Leader is the most important piece, similar to a King in traditional chess.
  */
-package Models;
+package mini.chess.game.Models;
 
 /**
  * Leader class implements the movement rules and behavior for the Leader piece.

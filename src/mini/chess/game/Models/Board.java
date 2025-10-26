@@ -2,7 +2,7 @@
  * Represents the game board for the Mini Chess game.
  * Manages the 5x5 board state, piece movements, and game rules.
  */
-package Models;
+package mini.chess.game.Models;
 
 import java.util.InputMismatchException;
 

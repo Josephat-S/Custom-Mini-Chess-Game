@@ -2,7 +2,7 @@
  * Handles database connection management for the Mini Chess game.
  * This class manages the connection to the game's database.
  */
-package db;
+package mini.chess.game.db;
 
 /**
  * DBConnection class manages database connectivity including:
