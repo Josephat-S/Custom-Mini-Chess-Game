@@ -253,4 +253,114 @@ public class Board {
         }
         return result;
     }
+
+    /**
+     * Simple, fast evaluation heuristic for a single legal move. Higher is better for 'player'.
+     * Heuristic factors:
+     * - Captures (Leader >> Soldier)
+     * - Putting opponent Leader in check
+     * - Small positional bonuses (advance Soldiers, centralize)
+     * - Penalty if the moved piece can be legally recaptured immediately
+     */
+    public double evaluateMoveSimple(String player, Move m) {
+        int fromRow = m.getFromRow();
+        int fromCol = m.getFromCol();
+        int toRow = m.getToRow();
+        int toCol = m.getToCol();
+
+        Piece piece = board[fromRow][fromCol];
+        if (piece == null || !player.equals(piece.player)) return -1_000_000; // invalid input safety
+        Piece capturedBefore = board[toRow][toCol];
+
+        // simulate move
+        Piece captured = board[toRow][toCol];
+        board[toRow][toCol] = piece;
+        board[fromRow][fromCol] = null;
+        int oldRow = piece.row, oldCol = piece.col;
+        piece.row = toRow; piece.col = toCol;
+
+        double score = 0.0;
+
+        // 1) capture value
+        if (captured != null) {
+            score += pieceValue(captured) * 10.0; // big incentive to capture
+        }
+
+        // 2) check bonus
+        String opponent = player.equals("Player1") ? "Player2" : "Player1";
+        if (isLeaderInCheck(opponent)) {
+            score += 5.0;
+        }
+
+        // 3) simple development/positioning bonuses
+        // centralization (closer to center (2,2))
+        int distBefore = Math.abs(oldRow - 2) + Math.abs(oldCol - 2);
+        int distAfter = Math.abs(toRow - 2) + Math.abs(toCol - 2);
+        score += (distBefore - distAfter) * 0.2; // small bonus
+
+        // Soldier advancement toward enemy side
+        if (piece instanceof Soldier) {
+            if (player.equals("Player1")) {
+                score += (oldRow - toRow) * 0.5; // moving up reduces row index
+            } else {
+                score += (toRow - oldRow) * 0.5; // moving down increases row index
+            }
+        }
+
+        // 4) immediate recapture risk: can opponent capture the landing square legally?
+        boolean canBeRecaptured = false;
+        outer:
+        for (int r1 = 0; r1 < 5; r1++) {
+            for (int c1 = 0; c1 < 5; c1++) {
+                Piece opp = board[r1][c1];
+                if (opp != null && opponent.equals(opp.player)) {
+                    if (opp.canMove(toRow, toCol)) {
+                        // simulate opponent capture and see if it's legal (their leader not in check)
+                        Piece tmpCap = board[toRow][toCol]; // currently our moved piece
+                        Piece tmpFrom = board[r1][c1];
+
+                        board[toRow][toCol] = opp;
+                        board[r1][c1] = null;
+                        int oRow = opp.row, oCol = opp.col;
+                        opp.row = toRow; opp.col = toCol;
+
+                        boolean oppInCheck = isLeaderInCheck(opponent);
+
+                        // undo opponent move
+                        opp.row = oRow; opp.col = oCol;
+                        board[r1][c1] = tmpFrom;
+                        board[toRow][toCol] = tmpCap;
+
+                        if (!oppInCheck) {
+                            canBeRecaptured = true;
+                            break outer;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (canBeRecaptured) {
+            // Heavier penalty if we moved the Leader into danger
+            if (piece instanceof Leader) {
+                score -= 100.0;
+            } else {
+                score -= 8.0;
+            }
+        }
+
+        // undo our original simulation
+        piece.row = oldRow; piece.col = oldCol;
+        board[fromRow][fromCol] = piece;
+        board[toRow][toCol] = capturedBefore;
+
+        return score;
+    }
+
+    private int pieceValue(Piece p) {
+        if (p == null) return 0;
+        if (p instanceof Leader) return 100;
+        if (p instanceof Soldier) return 10;
+        return 5;
+    }
 }

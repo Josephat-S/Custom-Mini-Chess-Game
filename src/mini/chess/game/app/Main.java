@@ -58,7 +58,7 @@ public class Main {
             try {
                 if (vsAI && currentPlayer.equals(aiSide)) {
                     System.out.println("AI (" + currentPlayer + ") is thinking...");
-                    boolean moved = ai.makeRandomMove(board, currentPlayer);
+                    boolean moved = ai.makeSmartMove(board, currentPlayer);
                     if (!moved) {
                         // No legal moves; fall through to status checks
                         System.out.println("AI has no legal moves.");
