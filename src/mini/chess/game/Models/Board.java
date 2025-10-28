@@ -5,6 +5,8 @@
 package mini.chess.game.Models;
 
 import java.util.InputMismatchException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Board class handles the game board state and game logic.
@@ -210,5 +212,45 @@ public class Board {
             }
         }
         return false;
+    }
+
+    /**
+     * Returns all legal moves for the given player in the current position.
+     * A move is considered legal if the piece's own canMove allows it and
+     * executing it does not leave the player's Leader in check.
+     */
+    public List<Move> getAllLegalMoves(String player) {
+        List<Move> result = new ArrayList<>();
+        for (int r1 = 0; r1 < 5; r1++) {
+            for (int c1 = 0; c1 < 5; c1++) {
+                Piece p = board[r1][c1];
+                if (p != null && p.player.equals(player)) {
+                    for (int r2 = 0; r2 < 5; r2++) {
+                        for (int c2 = 0; c2 < 5; c2++) {
+                            if (p.canMove(r2, c2)) {
+                                // simulate move
+                                Piece captured = board[r2][c2];
+                                board[r2][c2] = p;
+                                board[r1][c1] = null;
+                                int oldRow = p.row, oldCol = p.col;
+                                p.row = r2; p.col = c2;
+
+                                boolean stillInCheck = isLeaderInCheck(player);
+
+                                // undo
+                                p.row = oldRow; p.col = oldCol;
+                                board[r1][c1] = p;
+                                board[r2][c2] = captured;
+
+                                if (!stillInCheck) {
+                                    result.add(new Move(r1, c1, r2, c2));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return result;
     }
 }
