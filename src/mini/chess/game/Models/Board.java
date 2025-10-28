@@ -61,9 +61,22 @@ public class Board {
     }
 
     public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol) throws ArrayIndexOutOfBoundsException, InputMismatchException {
+        // Bounds validation
+        if (fromRow < 0 || fromRow >= 5 || fromCol < 0 || fromCol >= 5 || toRow < 0 || toRow >= 5 || toCol < 0 || toCol >= 5) {
+            System.out.println("Move out of bounds!");
+            return false;
+        }
+
         Piece piece = board[fromRow][fromCol];
         if (piece == null) {
             System.out.println("No piece at that position!");
+            return false;
+        }
+
+        Piece target = board[toRow][toCol];
+        // Cannot capture your own piece
+        if (target != null && target.player.equals(piece.player)) {
+            System.out.println("Cannot capture your own piece!");
             return false;
         }
 
@@ -72,11 +85,11 @@ public class Board {
             return false;
         }
 
-        Piece target = board[toRow][toCol];
         if (target != null) {
             System.out.println(piece.player + " captured " + target.player + "'s " + target.name);
         }
 
+        // Execute move
         board[toRow][toCol] = piece;
         board[fromRow][fromCol] = null;
         piece.row = toRow;
@@ -166,17 +179,28 @@ public class Board {
                 if (p != null && p.player.equals(player)) {
                     for (int r2 = 0; r2 < 5; r2++) {
                         for (int c2 = 0; c2 < 5; c2++) {
+                            // Skip squares occupied by own pieces
+                            Piece dest = board[r2][c2];
+                            if (dest != null && dest.player.equals(player)) continue;
+
                             if (p.canMove(r2, c2)) {
                                 // temporarily simulate move
                                 Piece temp = board[r2][c2];
+                                int oldRow = p.row;
+                                int oldCol = p.col;
+
                                 board[r2][c2] = p;
                                 board[r1][c1] = null;
+                                p.row = r2;
+                                p.col = c2;
 
                                 boolean stillInCheck = isLeaderInCheck(player);
 
                                 // undo move
                                 board[r1][c1] = p;
                                 board[r2][c2] = temp;
+                                p.row = oldRow;
+                                p.col = oldCol;
 
                                 if (!stillInCheck) return true;
                             }
