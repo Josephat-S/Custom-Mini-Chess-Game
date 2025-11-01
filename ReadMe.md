@@ -4,11 +4,12 @@ The Mini-Chess Game project is a simplified, educational chess system designed t
 
 ## 🏗️ Current Progress
 
-Requirements and system scope defined
-
-mini.chess.game.db design and ER diagram completed
-
-GitHub repository prepared for documentation and future implementation
+- Requirements and system scope defined
+- mini.chess.game.db design and ER diagram completed
+- GitHub repository prepared for documentation and future implementation
+- Console game playable (human vs human, human vs AI)
+- Basic AI upgraded to strategic alpha-beta search with difficulty levels
+- Simulation runner added for bulk AI-vs-AI testing
 
 ## 👥 Team Members
 
@@ -31,6 +32,8 @@ Java – for backend game logic
 GitHub – for version control and collaboration
 
 ## Game Rules:
+
+This project implements basic check, checkmate, and draw detection in addition to leader capture. The game ends when a Leader is captured, checkmate occurs (opponent has no legal moves while in check), or a draw situation is reached (opponent has no legal moves and is not in check).
 
 ## Board Setup
 - The game is played on a 5x5 grid.
@@ -91,11 +94,60 @@ Initial Board:
 
 ## Other Notes
 - No special moves (castling, pawn promotion, en passant, etc.).
-- No check/checkmate; only Leader capture matters.
-- No draw conditions implemented (e.g., stalemate, repetition).
+- Simplified rules tailored to 5x5 mini-chess.
+- The engine detects Check, Checkmate, and basic Draw (no legal moves) conditions.
 
 ## References
 - [Board initialization code](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Board.java)
 - [Piece movement rules](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Leader.java), [Soldier movement](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Soldier.java)
 - [Win condition](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Board.java#L61-L78)
 
+
+
+## 🤖 AI Logic Flow
+
+The AI uses a minimax search with alpha–beta pruning on the 5x5 board.
+- Move generation: `Board.getAllLegalMoves(player)` returns only moves that don’t leave your Leader in check.
+- Search: Alternates turns down to a fixed depth (configurable). Alpha–beta cuts branches that can’t affect the final decision.
+- Evaluation: At leaves (or when no moves), the position is scored by:
+  - Material: `Leader = 100`, `Soldier = 3`
+  - Mobility: difference in the number of legal moves
+  - Checks: small bonus when opponent is in check, penalty if self is in check
+  - Terminal leader capture is treated as a huge win/loss
+- Tie-breaking: When multiple moves share top score, one is chosen at random for variety.
+
+Key classes/methods:
+- `mini.chess.game.Models.AIPlayer`
+  - `setSearchDepth(int)` – set difficulty (0 = random, 1..3 = deeper search)
+  - `chooseBestMove(Board, String)` / `makeBestMove(Board, String)`
+  - `chooseRandomMove(Board, String)` / `makeRandomMove(Board, String)`
+- `mini.chess.game.Models.Board`
+  - `getAllLegalMoves(String)` – legal moves that keep Leader safe
+  - `isLeaderInCheck(String)` – used in evaluation and status logic
+  - Internal helpers for search: silent `applyMoveSilently` / `undoMoveSilently`
+
+## 🎮 Playing vs AI (Console)
+- Run `mini.chess.game.app.Main`.
+- Choose game mode "Play vs Computer (AI)" and pick sides.
+- Choose difficulty:
+  - 1) Random (no lookahead)
+  - 2) Depth 1
+  - 3) Depth 2 (default)
+  - 4) Depth 3
+
+## 📊 Simulation Runner (Batch AI vs AI)
+Run many games automatically to evaluate performance across settings.
+
+Usage:
+```
+java mini.chess.game.app.SimulationRunner [games] [p1Depth] [p2Depth] [seed]
+```
+Examples:
+```
+# 50 games, both AIs at depth 2 (default)
+java mini.chess.game.app.SimulationRunner
+
+# 200 games, P1 depth=3 vs P2 depth=1, with fixed seed for reproducibility
+java mini.chess.game.app.SimulationRunner 200 3 1 12345
+```
+The runner prints totals: Player1 wins, Player2 wins, and Draws.
