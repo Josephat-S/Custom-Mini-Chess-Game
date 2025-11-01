@@ -39,6 +39,10 @@ public class Board implements Serializable {
         System.out.println("=========================");
     }
 
+    public Piece getPieceAt(int row, int col) {
+        return board[row][col];
+    }
+
     public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol) {
         Piece piece = board[fromRow][fromCol];
         if (piece == null) {
@@ -88,7 +92,7 @@ public class Board implements Serializable {
         else return "NONE";
     }
 
-    private boolean isLeaderInCheck(String player) {
+    public boolean isLeaderInCheck(String player) {
         int leaderRow = -1, leaderCol = -1;
         for (int r = 0; r < 5; r++) {
             for (int c = 0; c < 5; c++) {
@@ -140,6 +144,46 @@ public class Board implements Serializable {
             }
         }
         return result;
+    }
+
+    public static class AppliedMove {
+        public final Move move;
+        public final Piece moved;
+        public final Piece captured;
+        public final int prevRow;
+        public final int prevCol;
+        public AppliedMove(Move move, Piece moved, Piece captured, int prevRow, int prevCol) {
+            this.move = move; this.moved = moved; this.captured = captured; this.prevRow = prevRow; this.prevCol = prevCol;
+        }
+    }
+
+    public AppliedMove applyMoveSilently(Move move) {
+        Piece piece = board[move.fromRow][move.fromCol];
+        Piece captured = board[move.toRow][move.toCol];
+        int prevRow = piece.row, prevCol = piece.col;
+        board[move.toRow][move.toCol] = piece;
+        board[move.fromRow][move.fromCol] = null;
+        piece.row = move.toRow; piece.col = move.toCol;
+        return new AppliedMove(move, piece, captured, prevRow, prevCol);
+    }
+
+    public void undoMoveSilently(AppliedMove applied) {
+        Move move = applied.move;
+        Piece piece = applied.moved;
+        board[move.fromRow][move.fromCol] = piece;
+        board[move.toRow][move.toCol] = applied.captured;
+        piece.row = applied.prevRow; piece.col = applied.prevCol;
+    }
+
+    public void applyAndAnnounceMove(Move move, String player, String actor) {
+        Piece piece = board[move.fromRow][move.fromCol];
+        Piece target = board[move.toRow][move.toCol];
+        if (target != null) System.out.println(actor + " captured " + target.player + "'s " + target.name);
+        board[move.toRow][move.toCol] = piece;
+        board[move.fromRow][move.fromCol] = null;
+        piece.row = move.toRow; piece.col = move.toCol;
+        System.out.println(actor + " moved " + piece.name + " from (" + move.fromRow + "," + move.fromCol + ") to (" + move.toRow + "," + move.toCol + ")");
+        displayBoard();
     }
 
     public void makeAIMove() {

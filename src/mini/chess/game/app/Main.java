@@ -1,7 +1,8 @@
-package mini.chess.game;
+package mini.chess.game.app;
 
 import java.util.InputMismatchException;
 import java.util.Scanner;
+import mini.chess.game.Models.AIPlayer;
 import mini.chess.game.Models.Board;
 
 class main {
@@ -14,6 +15,7 @@ class main {
             System.out.println("1. New Game");
             System.out.println("2. Load Saved Game");
             System.out.println("3. Exit");
+            System.out.println("4. AI vs AI Simulation (batch)");
             System.out.print("Choose an option: ");
 
             int choice = 0;
@@ -24,6 +26,7 @@ class main {
                 case 1 -> startNewGame(sc, null);
                 case 2 -> loadSavedGame(sc);
                 case 3 -> { System.out.println("Exiting..."); exitGame = true; }
+                case 4 -> SimulationRunner.runInteractive(sc);
                 default -> System.out.println("Invalid choice!");
             }
         }
@@ -41,6 +44,14 @@ class main {
             catch (InputMismatchException e) { System.out.println("Numbers only!"); sc.nextLine(); return; }
         }
 
+        int aiDepth = 2;
+        if (opponentChoice == 2) {
+            System.out.println("Select AI difficulty (0=Random, 1=Depth1, 2=Depth2, 3=Depth3): ");
+            try { aiDepth = sc.nextInt(); } catch (InputMismatchException e) { System.out.println("Numbers only!"); sc.nextLine(); aiDepth = 2; }
+        }
+        AIPlayer ai = new AIPlayer();
+        ai.setSearchDepth(aiDepth);
+
         Board board = (loadedBoard != null) ? loadedBoard : new Board();
         board.displayBoard();
         String currentPlayer = "Player1";
@@ -49,7 +60,10 @@ class main {
         while (!gameOver) {
             try {
                 if (opponentChoice == 2 && currentPlayer.equals("Player2")) {
-                    board.makeAIMove();
+                    boolean moved = ai.makeBestMove(board, "Player2");
+                    if (!moved) {
+                        System.out.println("AI has no legal moves.");
+                    }
                 } else {
                     System.out.println(currentPlayer + ", enter move (fromRow fromCol toRow toCol):");
                     int fromRow = sc.nextInt();
