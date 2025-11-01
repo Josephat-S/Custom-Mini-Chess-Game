@@ -17,6 +17,24 @@ public class Board {
     /** The game board represented as a 5x5 grid of pieces */
     private Piece[][] board = new Piece[5][5];
 
+    /** Lightweight record of an applied move to allow undo without printing. */
+    public static class AppliedMove {
+        public final Piece piece;
+        public final Piece captured;
+        public final int fromRow, fromCol, toRow, toCol;
+        public final int oldRow, oldCol;
+        public AppliedMove(Piece piece, Piece captured, int fromRow, int fromCol, int toRow, int toCol, int oldRow, int oldCol) {
+            this.piece = piece;
+            this.captured = captured;
+            this.fromRow = fromRow;
+            this.fromCol = fromCol;
+            this.toRow = toRow;
+            this.toCol = toCol;
+            this.oldRow = oldRow;
+            this.oldCol = oldCol;
+        }
+    }
+
     /**
      * Constructor initializes a new game board with starting piece positions.
      */
@@ -36,6 +54,33 @@ public class Board {
         board[0][2] = new Leader(0, 2, "Player2");
         board[1][1] = new Soldier(1, 1, "Player2");
         board[1][3] = new Soldier(1, 3, "Player2");
+    }
+
+    /** Returns the piece at the given square, or null. */
+    public Piece getPieceAt(int row, int col) {
+        if (row < 0 || row >= 5 || col < 0 || col >= 5) return null;
+        return board[row][col];
+    }
+
+    /** Applies a move without printing, returning an AppliedMove for undo. */
+    public AppliedMove applyMoveSilently(Move m) {
+        Piece p = board[m.getFromRow()][m.getFromCol()];
+        Piece captured = board[m.getToRow()][m.getToCol()];
+        int oldRow = p.row, oldCol = p.col;
+        board[m.getToRow()][m.getToCol()] = p;
+        board[m.getFromRow()][m.getFromCol()] = null;
+        p.row = m.getToRow();
+        p.col = m.getToCol();
+        return new AppliedMove(p, captured, m.getFromRow(), m.getFromCol(), m.getToRow(), m.getToCol(), oldRow, oldCol);
+    }
+
+    /** Undoes a previously applied silent move. */
+    public void undoMoveSilently(AppliedMove am) {
+        // restore piece back
+        board[am.fromRow][am.fromCol] = am.piece;
+        board[am.toRow][am.toCol] = am.captured;
+        am.piece.row = am.oldRow;
+        am.piece.col = am.oldCol;
     }
 
     // ------------------------------
@@ -142,7 +187,7 @@ public class Board {
     }
 
     // Check if a player's leader is currently under attack
-    private boolean isLeaderInCheck(String player) {
+    public boolean isLeaderInCheck(String player) {
         int leaderRow = -1, leaderCol = -1;
 
         // find the leader

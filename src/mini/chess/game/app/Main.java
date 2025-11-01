@@ -44,6 +44,34 @@ public class Main {
             }
             aiSide = (side == 1) ? "Player2" : "Player1";
             System.out.println("You are " + (aiSide.equals("Player1") ? "Player2" : "Player1") + ". Good luck!");
+
+            // Difficulty selection
+            System.out.println("\nSelect AI difficulty:");
+            System.out.println("1) Random\n2) Depth 1\n3) Depth 2 (default)\n4) Depth 3");
+            int diff = 3; // default to Depth 2 option index
+            boolean ok = false;
+            while (!ok) {
+                System.out.print("Enter 1-4: ");
+                try {
+                    diff = Integer.parseInt(sc.nextLine().trim());
+                    ok = diff >= 1 && diff <= 4;
+                } catch (NumberFormatException e) {
+                    ok = false;
+                }
+            }
+            int depth;
+            if (diff == 1) {
+                depth = 0; // Random
+            } else if (diff == 2) {
+                depth = 1;
+            } else if (diff == 3) {
+                depth = 2;
+            } else if (diff == 4) {
+                depth = 3;
+            } else {
+                depth = 2;
+            }
+            ai.setSearchDepth(depth);
         } else {
             System.out.println("Two-player mode selected. Player1 starts.");
         }
@@ -58,7 +86,12 @@ public class Main {
             try {
                 if (vsAI && currentPlayer.equals(aiSide)) {
                     System.out.println("AI (" + currentPlayer + ") is thinking...");
-                    boolean moved = ai.makeRandomMove(board, currentPlayer);
+                    boolean moved;
+                    if (ai.getSearchDepth() <= 0) {
+                        moved = ai.makeRandomMove(board, currentPlayer);
+                    } else {
+                        moved = ai.makeBestMove(board, currentPlayer);
+                    }
                     if (!moved) {
                         // No legal moves; fall through to status checks
                         System.out.println("AI has no legal moves.");
