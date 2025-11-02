@@ -16,6 +16,11 @@ public abstract class Piece implements Serializable {
         this.name = name;
     }
 
+    // Added getter for player to support database layer expectations
+    public String getPlayer() {
+        return player;
+    }
+
     public abstract boolean canMove(int toRow, int toCol);
     public abstract String getSymbol();
 }
