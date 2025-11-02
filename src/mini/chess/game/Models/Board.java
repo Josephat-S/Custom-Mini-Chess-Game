@@ -43,6 +43,29 @@ public class Board implements Serializable {
         return board[row][col];
     }
 
+    // Adapter method for DB layer compatibility
+    public Piece getPiece(int row, int col) {
+        return getPieceAt(row, col);
+    }
+
+    // Set a piece at a specific location
+    public void setPiece(int row, int col, Piece piece) {
+        board[row][col] = piece;
+        if (piece != null) {
+            piece.row = row;
+            piece.col = col;
+        }
+    }
+
+    // Clear the board
+    public void clear() {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                board[i][j] = null;
+            }
+        }
+    }
+
     public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol) {
         Piece piece = board[fromRow][fromCol];
         if (piece == null) {
@@ -58,7 +81,8 @@ public class Board implements Serializable {
 
         board[toRow][toCol] = piece;
         board[fromRow][fromCol] = null;
-        piece.row = toRow; piece.col = toCol;
+        piece.row = toRow;
+        piece.col = toCol;
 
         System.out.println(piece.player + " moved " + piece.name);
         displayBoard();
@@ -98,7 +122,8 @@ public class Board implements Serializable {
             for (int c = 0; c < 5; c++) {
                 Piece p = board[r][c];
                 if (p instanceof Leader && p.player.equals(player)) {
-                    leaderRow = r; leaderCol = c;
+                    leaderRow = r;
+                    leaderCol = c;
                 }
             }
         }
@@ -127,14 +152,18 @@ public class Board implements Serializable {
                         for (int c2 = 0; c2 < 5; c2++) {
                             if (p.canMove(r2, c2)) {
                                 Piece captured = board[r2][c2];
-                                board[r2][c2] = p; board[r1][c1] = null;
+                                board[r2][c2] = p;
+                                board[r1][c1] = null;
                                 int oldRow = p.row, oldCol = p.col;
-                                p.row = r2; p.col = c2;
+                                p.row = r2;
+                                p.col = c2;
 
                                 boolean stillInCheck = isLeaderInCheck(player);
 
-                                p.row = oldRow; p.col = oldCol;
-                                board[r1][c1] = p; board[r2][c2] = captured;
+                                p.row = oldRow;
+                                p.col = oldCol;
+                                board[r1][c1] = p;
+                                board[r2][c2] = captured;
 
                                 if (!stillInCheck) result.add(new Move(r1, c1, r2, c2));
                             }
@@ -152,8 +181,13 @@ public class Board implements Serializable {
         public final Piece captured;
         public final int prevRow;
         public final int prevCol;
+
         public AppliedMove(Move move, Piece moved, Piece captured, int prevRow, int prevCol) {
-            this.move = move; this.moved = moved; this.captured = captured; this.prevRow = prevRow; this.prevCol = prevCol;
+            this.move = move;
+            this.moved = moved;
+            this.captured = captured;
+            this.prevRow = prevRow;
+            this.prevCol = prevCol;
         }
     }
 
@@ -163,7 +197,8 @@ public class Board implements Serializable {
         int prevRow = piece.row, prevCol = piece.col;
         board[move.toRow][move.toCol] = piece;
         board[move.fromRow][move.fromCol] = null;
-        piece.row = move.toRow; piece.col = move.toCol;
+        piece.row = move.toRow;
+        piece.col = move.toCol;
         return new AppliedMove(move, piece, captured, prevRow, prevCol);
     }
 
@@ -172,7 +207,8 @@ public class Board implements Serializable {
         Piece piece = applied.moved;
         board[move.fromRow][move.fromCol] = piece;
         board[move.toRow][move.toCol] = applied.captured;
-        piece.row = applied.prevRow; piece.col = applied.prevCol;
+        piece.row = applied.prevRow;
+        piece.col = applied.prevCol;
     }
 
     public void applyAndAnnounceMove(Move move, String player, String actor) {
@@ -181,7 +217,8 @@ public class Board implements Serializable {
         if (target != null) System.out.println(actor + " captured " + target.player + "'s " + target.name);
         board[move.toRow][move.toCol] = piece;
         board[move.fromRow][move.fromCol] = null;
-        piece.row = move.toRow; piece.col = move.toCol;
+        piece.row = move.toRow;
+        piece.col = move.toCol;
         System.out.println(actor + " moved " + piece.name + " from (" + move.fromRow + "," + move.fromCol + ") to (" + move.toRow + "," + move.toCol + ")");
         displayBoard();
     }
@@ -201,7 +238,8 @@ public class Board implements Serializable {
 
         board[move.toRow][move.toCol] = piece;
         board[move.fromRow][move.fromCol] = null;
-        piece.row = move.toRow; piece.col = move.toCol;
+        piece.row = move.toRow;
+        piece.col = move.toCol;
 
         System.out.println("AI moved " + piece.name + " from (" + move.fromRow + "," + move.fromCol + ") to (" + move.toRow + "," + move.toCol + ")");
         displayBoard();
