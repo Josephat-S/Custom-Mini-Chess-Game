@@ -4,51 +4,67 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-// Oracle JDBC connection helper for the Mini Chess game.
-public final class DBConnection {
-    // --- Connection configuration (adjust if needed) ---
-    private static final String HOST = "localhost";
-    private static final int PORT = 1521;
-    private static final String SERVICE = "mini_chess"; // PDB service name
+/**
+ * DBConnection class manages Oracle database connectivity
+ * including establishing, reusing, and closing connections.
+ */
+public class DBConnection {
 
-    private static final String USER = "adminOper";
-    private static final String PASSWORD = "Admin@Group123!";
+    // JDBC URL for Oracle PDB MINI_CHESS
+    private static final String URL = "jdbc:oracle:thin:@localhost:1521/MINI_CHESS";
 
-    // Oracle Thin JDBC URL using EZCONNECT syntax
-    private static final String JDBC_URL = String.format(
-            "jdbc:oracle:thin:@//%s:%d/%s", HOST, PORT, SERVICE
-    );
+    private static final String USER = "chess_adm";
+    private static final String PASSWORD = "chess123";
 
-    static {
-        // Optional: Explicitly load the Oracle driver for older environments.
+    // Singleton connection instance
+    private static Connection connection = null;
+
+    /**
+     * Get a database connection (singleton)
+     * @return Connection object
+     */
+    public static Connection getConnection() {
         try {
-            Class.forName("oracle.jdbc.OracleDriver");
-        } catch (ClassNotFoundException ignored) {
-            // If the driver isn't found here, DriverManager may still locate it
-            // via the Service Provider mechanism when the driver jar is on the classpath.
+            if (connection == null || connection.isClosed()) {
+                // Load Oracle JDBC driver
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+
+                // Establish connection
+                connection = DriverManager.getConnection(URL, USER, PASSWORD);
+                System.out.println("Database connected successfully!");
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("Oracle JDBC Driver not found.");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            System.err.println("Failed to connect to database.");
+            e.printStackTrace();
         }
-        // Optional: Set a global login timeout (in seconds)
-        DriverManager.setLoginTimeout(10);
-    }
-
-    private DBConnection() {
-        // Utility class; prevent instantiation
+        return connection;
     }
 
     /**
-     * Obtain a new JDBC connection to the configured Oracle PDB.
-     *
-     * @return an open {@link Connection}
-     * @throws SQLException if the connection cannot be established
+     * Close the database connection
      */
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(JDBC_URL, USER, PASSWORD);
+    public static void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                System.out.println("Database connection closed.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
-     * Expose the JDBC URL for logging or diagnostics.
+     * Simple test for connection
      */
-    public static String getJdbcUrl() {
-        return JDBC_URL;
+    public static void main(String[] args) {
+        Connection conn = DBConnection.getConnection();
+        DBConnection.closeConnection();
     }
 }
+
+
+
