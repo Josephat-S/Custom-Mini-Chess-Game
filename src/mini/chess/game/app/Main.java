@@ -5,7 +5,7 @@ import java.util.Scanner;
 import mini.chess.game.Models.AIPlayer;
 import mini.chess.game.Models.Board;
 
-class main {
+public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         boolean exitGame = false;
