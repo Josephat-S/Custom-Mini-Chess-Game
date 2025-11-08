@@ -1,59 +1,43 @@
-/**
- * Base class for all chess pieces in the game.
- * Provides common functionality and properties for game pieces.
- */
 package mini.chess.game.Models;
 
-/**
- * Abstract base class that defines the common properties and behaviors
- * of all chess pieces in the game. Each specific piece type (Leader, Soldier)
- * extends this class and implements its own movement rules.
- */
-public abstract class Piece {
-    /** Name of the piece (e.g., "Leader", "Soldier") */
-    protected String name;
-    /** Symbol used to represent the piece on the board */
-    protected char symbol;
-    /** Current row position of the piece */
-    protected int row;
-    /** Current column position of the piece */
-    protected int col;
-    /** Player who owns this piece ("Player1" or "Player2") */
-    protected String player;
+import java.io.Serializable;
 
-    /**
-     * Constructor for creating a new piece.
-     * 
-     * @param name   The name of the piece
-     * @param symbol The character symbol representing the piece
-     * @param row    Initial row position
-     * @param col    Initial column position
-     * @param player The player who owns this piece
-     */
-    public Piece(String name, char symbol, int row, int col, String player) {
-        this.name = name;
-        this.symbol = symbol;
+public abstract class Piece implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    public int row, col;
+    public String player;
+    public String name;
+
+    public Piece(int row, int col, String player, String name) {
         this.row = row;
         this.col = col;
         this.player = player;
+        this.name = name;
     }
 
-    /**
-     * Gets the symbol character used to represent this piece on the board.
-     * 
-     * @return The piece's symbol character
-     */
-    public char getSymbol() {
-        return symbol;
+    // Added getter for player to support database layer expectations
+    public String getPlayer() {
+        return player;
     }
 
-    /**
-     * Checks if the piece can move to the specified position.
-     * Each piece type implements its own movement rules.
-     * 
-     * @param newRow The target row position
-     * @param newCol The target column position
-     * @return true if the move is valid for this piece type, false otherwise
-     */
-    public abstract boolean canMove(int newRow, int newCol);
+    // Added accessors so callers can safely mutate coordinates if needed
+    public int getRow() {
+        return row;
+    }
+
+    public int getCol() {
+        return col;
+    }
+
+    public void setRow(int row) {
+        this.row = row;
+    }
+
+    public void setCol(int col) {
+        this.col = col;
+    }
+
+    public abstract boolean canMove(int toRow, int toCol);
+    public abstract String getSymbol();
 }
