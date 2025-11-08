@@ -21,6 +21,23 @@ public abstract class Piece implements Serializable {
         return player;
     }
 
+    // Added accessors so callers can safely mutate coordinates if needed
+    public int getRow() {
+        return row;
+    }
+
+    public int getCol() {
+        return col;
+    }
+
+    public void setRow(int row) {
+        this.row = row;
+    }
+
+    public void setCol(int col) {
+        this.col = col;
+    }
+
     public abstract boolean canMove(int toRow, int toCol);
     public abstract String getSymbol();
 }
