@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import mini.chess.game.Models.AIPlayer;
 import mini.chess.game.Models.Board;
 import mini.chess.game.db.AuthManager;
-import mini.chess.game.utils.GameDataManager;
+import mini.chess.game.db.GameDataManager;
 import mini.chess.game.Network.Client;
 import mini.chess.game.Network.Server;
 
@@ -312,7 +312,6 @@ public class Main {
                                     boardRef.set(newBoard);
                                 }
                                 boardRef.get().displayBoard();
-                                // after host SYNC, client is usually allowed to play as Player2
                                 currentPlayer.set("Player2");
                             } else if (incoming.startsWith("HELLO_ACK")) {
                                 System.out.println("Host acknowledged join.");
@@ -340,10 +339,13 @@ public class Main {
                         int fromCol = sc.nextInt();
                         int toRow = sc.nextInt();
                         int toCol = sc.nextInt();
-                        // Do not apply the move locally. Send to host and wait for host SYNC to update board.
+                        synchronized (boardLock) {
+                            boardRef.get().movePiece(fromRow, fromCol, toRow, toCol);
+                        }
+                        boardRef.get().displayBoard();
+                        // Send move to host; host will record and SYNC back
                         client.send("MOVE " + fromRow + " " + fromCol + " " + toRow + " " + toCol);
-                        System.out.println("Move sent. Waiting for host to validate and sync...");
-                        // disable further input until SYNC arrives
+                        // After sending, wait for host SYNC; disable further input until SYNC arrives
                         currentPlayer.set("Player1");
                     } catch (Exception e) {
                         System.out.println("Invalid input.");

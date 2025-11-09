@@ -1,160 +1,367 @@
 package mini.chess.game.db;
 
-import mini.chess.game.Models.*;
+import mini.chess.game.Models.Board;
+import mini.chess.game.Models.Piece;
+import mini.chess.game.Models.Leader;
+import mini.chess.game.Models.Soldier;
+
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GameDataManager {
 
-    // ✅ Connect to Oracle database
-    private static Connection connect() {
-        Connection conn = null;
-        try {
-            String url = "jdbc:oracle:thin:@//localhost:1521/mini_chess";
-            String user = "chess_adm";
-            String password = "chess123";
+    public static class GameCreateResult {
+        public final int gameId;
+        public final int playerId;
 
-            conn = DriverManager.getConnection(url, user, password);
-            conn.setAutoCommit(false);
-            System.out.println("✅ Connected to database successfully!");
-        } catch (SQLException e) {
-            System.err.println("❌ Database connection failed: " + e.getMessage());
+        public GameCreateResult(int gameId, int playerId) {
+            this.gameId = gameId;
+            this.playerId = playerId;
         }
-        return conn;
     }
 
-    // ✅ Save game into database
-    public static int saveGame(Board board, String currentPlayer) {
-        int gameId = -1;
-
-        try (Connection conn = connect()) {
+    public static int getOrCreatePlayerId(int userId) {
+        try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) return -1;
+            String q = "SELECT player_id FROM players WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(q)) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getInt("player_id");
+                }
+            }
+            String ins = "INSERT INTO players (user_id, score) VALUES (?, 0)";
+            try (PreparedStatement ps = conn.prepareStatement(ins, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, userId);
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("getOrCreatePlayerId: " + e.getMessage());
+        }
+        return -1;
+    }
 
-            // Insert into SAVED_GAMES (auto-incremented ID)
-            String insertGame = "INSERT INTO SAVED_GAMES (CURRENT_PLAYER) VALUES (?)";
-            PreparedStatement ps = conn.prepareStatement(insertGame, new String[]{"GAME_ID"});
-            ps.setString(1, currentPlayer);
-            ps.executeUpdate();
+    public static GameCreateResult createLanGameForHost(int userId, Board board, int currentPlayerTurn) {
+        String boardJson = boardToStringForNetwork(board);
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return new GameCreateResult(-1, -1);
+            conn.setAutoCommit(false);
+            try {
+                String insertGame = "INSERT INTO games (`type`, `start_time`, `status`) VALUES (?, NOW(), ?)";
+                int gameId;
+                try (PreparedStatement ps = conn.prepareStatement(insertGame, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, "lan");
+                    ps.setString(2, "ongoing");
+                    ps.executeUpdate();
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        rs.next();
+                        gameId = rs.getInt(1);
+                    }
+                }
 
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) gameId = rs.getInt(1);
-            rs.close();
-            ps.close();
+                int playerId = getOrCreatePlayerId(userId);
+                if (playerId == -1) throw new SQLException("Player creation failed");
 
-            // Insert all pieces into SAVED_PIECES
-            String insertPiece = "INSERT INTO SAVED_PIECES (GAME_ID, ROW_INDEX, COL_INDEX, PIECE_TYPE, PLAYER_NAME) VALUES (?, ?, ?, ?, ?)";
-            PreparedStatement psPiece = conn.prepareStatement(insertPiece);
+                String insertPlayersGames = "INSERT INTO players_games (game_id, player_one_id, player_two_id) VALUES (?, ?, NULL)";
+                try (PreparedStatement ps = conn.prepareStatement(insertPlayersGames)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, playerId);
+                    ps.executeUpdate();
+                }
 
-            for (int r = 0; r < 5; r++) {
-                for (int c = 0; c < 5; c++) {
-                    Piece p = board.getPiece(r, c);
-                    if (p != null) {
-                        psPiece.setInt(1, gameId);
-                        psPiece.setInt(2, r);
-                        psPiece.setInt(3, c);
-                        psPiece.setString(4, p.getClass().getSimpleName());
-                        psPiece.setString(5, p.getPlayer());
-                        psPiece.addBatch();
+                String insertState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertState)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, currentPlayerTurn);
+                    ps.setString(3, boardJson != null ? boardJson : "[]");
+                    ps.setString(4, "initial");
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                conn.setAutoCommit(true);
+                return new GameCreateResult(gameId, playerId);
+            } catch (SQLException ex) {
+                conn.rollback();
+                System.err.println("createLanGameForHost failed: " + ex.getMessage());
+                conn.setAutoCommit(true);
+                return new GameCreateResult(-1, -1);
+            }
+        } catch (SQLException e) {
+            System.err.println("DB connect error in createLanGameForHost: " + e.getMessage());
+            return new GameCreateResult(-1, -1);
+        }
+    }
+
+    public static int addPlayerToExistingGame(int gameId, int userId) {
+        int playerId = getOrCreatePlayerId(userId);
+        if (playerId == -1) return -1;
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return -1;
+            String updateQuery = "UPDATE players_games SET player_two_id = ? WHERE game_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(updateQuery)) {
+                ps.setInt(1, playerId);
+                ps.setInt(2, gameId);
+                ps.executeUpdate();
+            }
+            return playerId;
+        } catch (SQLException e) {
+            System.err.println("addPlayerToExistingGame failed: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    public static boolean recordMoveAndUpdateState(int gameId, int playerId, Integer moveNumber, String fromCell, String toCell, Board board) {
+        String boardJson = boardToStringForNetwork(board);
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return false;
+            conn.setAutoCommit(false);
+            try {
+                String insertMove = "INSERT INTO moves (game_id, player_id, move_number, from_cell, to_cell) VALUES (?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertMove)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, playerId);
+                    ps.setInt(3, moveNumber);
+                    ps.setString(4, fromCell);
+                    ps.setString(5, toCell);
+                    ps.executeUpdate();
+                }
+
+                int nextTurn = getPlayerNumberForGame(conn, gameId, playerId) == 1 ? 2 : 1;
+                String lastMove = fromCell + "->" + toCell;
+
+                String insertState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertState)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, nextTurn);
+                    ps.setString(3, boardJson);
+                    ps.setString(4, lastMove);
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                conn.setAutoCommit(true);
+                return true;
+            } catch (SQLException ex) {
+                conn.rollback();
+                System.err.println("recordMoveAndUpdateState failed: " + ex.getMessage());
+                conn.setAutoCommit(true);
+                return false;
+            }
+        } catch (SQLException e) {
+            System.err.println("DB connect error in recordMoveAndUpdateState: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static int getPlayerNumberForGame(Connection conn, int gameId, int playerId) throws SQLException {
+        String q = "SELECT player_one_id, player_two_id FROM players_games WHERE game_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(q)) {
+            ps.setInt(1, gameId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    if (rs.getInt("player_one_id") == playerId) return 1;
+                    if (rs.getInt("player_two_id") == playerId) return 2;
+                }
+            }
+        }
+        return 1;
+    }
+
+    public static List<Integer> listSavedGamesForUser(int userId) {
+        List<Integer> savedGames = new ArrayList<>();
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return savedGames;
+            String query = "SELECT g.game_id FROM games g JOIN players_games pg ON g.game_id = pg.game_id JOIN players p ON pg.player_one_id = p.player_id OR pg.player_two_id = p.player_id WHERE p.user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        savedGames.add(rs.getInt("game_id"));
                     }
                 }
             }
-
-            psPiece.executeBatch();
-            conn.commit();
-
-            System.out.println("✅ Game saved successfully with ID: " + gameId);
-
         } catch (SQLException e) {
-            System.err.println("❌ Error while saving game: " + e.getMessage());
+            System.err.println("listSavedGamesForUser failed: " + e.getMessage());
         }
-        return gameId;
+        return savedGames;
     }
 
-    // ✅ Load a saved game
-    public static Board loadGame(int gameId) {
-        Board board = new Board();
-        board.clear();
-
-        try (Connection conn = connect()) {
-            if (conn == null) {
-                System.err.println("❌ Cannot load game: Database connection is null.");
-                return board;
+    public static Board loadGameById(int gameId) {
+        String boardJson = null;
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return null;
+            String query = "SELECT board_data FROM gamestate WHERE game_id = ? ORDER BY id DESC LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setInt(1, gameId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        boardJson = rs.getString("board_data");
+                    }
+                }
             }
-
-            String query = "SELECT ROW_INDEX, COL_INDEX, PIECE_TYPE, PLAYER_NAME FROM SAVED_PIECES WHERE GAME_ID = ?";
-            PreparedStatement ps = conn.prepareStatement(query);
-            ps.setInt(1, gameId);
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                int row = rs.getInt("ROW_INDEX");
-                int col = rs.getInt("COL_INDEX");
-                String type = rs.getString("PIECE_TYPE");
-                String player = rs.getString("PLAYER_NAME");
-
-                Piece piece = switch (type) {
-                    case "Leader" -> new Leader(row, col, player);
-                    case "Soldier" -> new Soldier(row, col, player);
-                    default -> null;
-                };
-
-                if (piece != null) board.setPiece(row, col, piece);
-            }
-
-            System.out.println("✅ Game loaded successfully from database!");
-
         } catch (SQLException e) {
-            System.err.println("❌ Error while loading game: " + e.getMessage());
+            System.err.println("loadGameById failed: " + e.getMessage());
         }
+        return boardFromStringForNetwork(boardJson);
+    }
 
+    public static boolean saveUnfinishedGameWithBoardData(int userId, String boardJson, int currentTurn) {
+        int playerId = getOrCreatePlayerId(userId);
+        if (playerId == -1) return false;
+
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return false;
+            conn.setAutoCommit(false);
+            try {
+                Integer gameId = null;
+                String qGame = "SELECT pg.game_id FROM players_games pg JOIN games g ON pg.game_id = g.game_id WHERE (pg.player_one_id = ? OR pg.player_two_id = ?) AND g.status = 'ongoing' ORDER BY pg.pg_id DESC LIMIT 1";
+                try (PreparedStatement ps = conn.prepareStatement(qGame)) {
+                    ps.setInt(1, playerId);
+                    ps.setInt(2, playerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) gameId = rs.getInt("game_id");
+                    }
+                }
+
+                if (gameId == null) {
+                    String insGame = "INSERT INTO games (type, start_time, status) VALUES ('lan', NOW(), 'ongoing')";
+                    try (PreparedStatement ps = conn.prepareStatement(insGame, Statement.RETURN_GENERATED_KEYS)) {
+                        ps.executeUpdate();
+                        try (ResultSet rs = ps.getGeneratedKeys()) {
+                            if (rs.next()) gameId = rs.getInt(1);
+                        }
+                    }
+                    if (gameId == null) throw new SQLException("Failed to create game");
+                    String insPg = "INSERT INTO players_games (game_id, player_one_id, player_two_id) VALUES (?, ?, NULL)";
+                    try (PreparedStatement ps = conn.prepareStatement(insPg)) {
+                        ps.setInt(1, gameId);
+                        ps.setInt(2, playerId);
+                        ps.executeUpdate();
+                    }
+                }
+
+                String insState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insState)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, currentTurn);
+                    ps.setString(3, boardJson != null && !boardJson.isEmpty() ? boardJson : "[]");
+                    ps.setString(4, "autosave");
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                return true;
+            } catch (SQLException ex) {
+                conn.rollback();
+                System.err.println("saveUnfinishedGameWithBoardData failed: " + ex.getMessage());
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.err.println("DB connect error in saveUnfinishedGameWithBoardData: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static String boardToStringForNetwork(Board board) {
+        if (board == null) return "[]";
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        boolean first = true;
+        final int SIZE = 5;
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                Piece p = board.getPiece(r, c);
+                if (p == null) continue;
+                if (!first) sb.append(',');
+                first = false;
+                sb.append('{');
+                sb.append("\"type\":\"").append(escapeJson(p.getClass().getSimpleName())).append("\",");
+                sb.append("\"player\":\"").append(escapeJson(p.getPlayer())).append("\",");
+                sb.append("\"row\":").append(r).append(",");
+                sb.append("\"col\":").append(c);
+                sb.append('}');
+            }
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    public static Board boardFromStringForNetwork(String json) {
+        Board board = new Board();
+        if (json == null) return board;
+        String trimmed = json.trim();
+        if (trimmed.isEmpty() || trimmed.equals("[]")) return board;
+        if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return board;
+        String inner = trimmed.substring(1, trimmed.length() - 1).trim();
+        if (inner.isEmpty()) return board;
+
+        String[] items = inner.split("\\},\\s*\\{");
+        for (int i = 0; i < items.length; i++) {
+            String it = items[i];
+            if (!it.startsWith("{")) it = "{" + it;
+            if (!it.endsWith("}")) it = it + "}";
+            String type = extractStringField(it, "type");
+            String player = extractStringField(it, "player");
+            Integer row = extractIntField(it, "row");
+            Integer col = extractIntField(it, "col");
+            if (type == null || player == null || row == null || col == null) continue;
+            Piece p = null;
+            switch (type) {
+                case "Leader" -> p = new Leader(row, col, player);
+                case "Soldier" -> p = new Soldier(row, col, player);
+                default -> {
+                }
+            }
+            if (p != null) board.setPiece(row, col, p);
+        }
         return board;
     }
 
-    // ✅ Print saved game info (for testing/debug)
-    public static void printSavedGame(int gameId) {
-        try (Connection conn = connect()) {
-            if (conn == null) return;
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
 
-            System.out.println("\n=== SAVED GAME DATA (GAME_ID = " + gameId + ") ===");
+    private static String unescapeJson(String s) {
+        if (s == null) return null;
+        return s.replace("\\\"", "\"").replace("\\\\", "\\");
+    }
 
-            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM SAVED_GAMES WHERE GAME_ID = ?");
-            ps1.setInt(1, gameId);
-            ResultSet rs1 = ps1.executeQuery();
+    private static String extractStringField(String s, String field) {
+        String key = "\"" + field + "\":";
+        int idx = s.indexOf(key);
+        if (idx < 0) return null;
+        int start = s.indexOf('"', idx + key.length());
+        if (start < 0) return null;
+        int end = s.indexOf('"', start + 1);
+        if (end < 0) return null;
+        return unescapeJson(s.substring(start + 1, end));
+    }
 
-            if (rs1.next()) {
-                System.out.println("Game ID: " + rs1.getInt("GAME_ID"));
-                System.out.println("Current Player: " + rs1.getString("CURRENT_PLAYER"));
-            }
-
-            System.out.println("\n--- SAVED PIECES ---");
-            PreparedStatement ps2 = conn.prepareStatement(
-                    "SELECT ROW_INDEX, COL_INDEX, PIECE_TYPE, PLAYER_NAME FROM SAVED_PIECES WHERE GAME_ID = ? ORDER BY ROW_INDEX, COL_INDEX"
-            );
-            ps2.setInt(1, gameId);
-            ResultSet rs2 = ps2.executeQuery();
-
-            while (rs2.next()) {
-                System.out.printf("Row:%d Col:%d | %s (%s)\n",
-                        rs2.getInt("ROW_INDEX"),
-                        rs2.getInt("COL_INDEX"),
-                        rs2.getString("PIECE_TYPE"),
-                        rs2.getString("PLAYER_NAME"));
-            }
-
-            System.out.println("===============================");
-
-        } catch (SQLException e) {
-            System.err.println("❌ Error while printing saved game: " + e.getMessage());
+    private static Integer extractIntField(String s, String field) {
+        String key = "\"" + field + "\":";
+        int idx = s.indexOf(key);
+        if (idx < 0) return null;
+        int pos = idx + key.length();
+        StringBuilder num = new StringBuilder();
+        while (pos < s.length()) {
+            char ch = s.charAt(pos);
+            if ((ch >= '0' && ch <= '9') || ch == '-') {
+                num.append(ch);
+                pos++;
+            } else break;
+        }
+        try {
+            return Integer.parseInt(num.toString());
+        } catch (Exception e) {
+            return null;
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
