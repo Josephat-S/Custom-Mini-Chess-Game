@@ -20,4 +20,8 @@ public class DBConnection {
         conn.setAutoCommit(false);
         return conn;
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536

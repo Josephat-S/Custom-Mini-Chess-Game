@@ -123,4 +123,8 @@ public class AuthManager {
         }
         return -1;
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 // java
+=======
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536
 package mini.chess.game.Network;
 
 import java.io.*;
@@ -42,4 +45,8 @@ public class Client implements Closeable {
     public void close() throws IOException {
         socket.close();
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536

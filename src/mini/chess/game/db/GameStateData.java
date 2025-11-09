@@ -20,4 +20,8 @@ public class GameStateData {
     public int getPlayerTurn() { return playerTurn; }
     public String getLastMove() { return lastMove; }
     public Timestamp getSavedAt() { return savedAt; }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536

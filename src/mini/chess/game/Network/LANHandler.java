@@ -1,7 +1,11 @@
 package mini.chess.game.Network;
 
 import mini.chess.game.Models.Board;
+<<<<<<< HEAD
 import mini.chess.game.db.GameDataManager;
+=======
+import mini.chess.game.utils.GameDataManager;
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536
 
 public class LANHandler {
     // (existing fields & methods)
@@ -34,4 +38,8 @@ public class LANHandler {
         // iterate connected peers and send a message with boardJson + lastMove info
         // e.g. for each connection: sendMessage(new MoveMessage(gameId, boardJson, fromCell, toCell, moveNumber));
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536

@@ -1,8 +1,12 @@
 // java
 package mini.chess.game.Network;
 
+<<<<<<< HEAD
 import mini.chess.game.Models.Board;
 import mini.chess.game.db.GameDataManager;
+=======
+import mini.chess.game.utils.GameDataManager;
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -75,4 +79,8 @@ public class Server implements Closeable {
     public void close() throws IOException {
         try { if (client != null) client.close(); } finally { serverSocket.close(); }
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d6404598e9a28c009378acce2df4ffd913c2536
