@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import mini.chess.game.Models.AIPlayer;
 import mini.chess.game.Models.Board;
 import mini.chess.game.db.AuthManager;
-import mini.chess.game.db.GameDataManager;
+import mini.chess.game.utils.GameDataManager;
 import mini.chess.game.Network.Client;
 import mini.chess.game.Network.Server;
 
