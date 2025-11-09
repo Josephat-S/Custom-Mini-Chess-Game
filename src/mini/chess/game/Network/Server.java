@@ -1,7 +1,8 @@
 // java
 package mini.chess.game.Network;
 
-import mini.chess.game.utils.GameDataManager;
+import mini.chess.game.Models.Board;
+import mini.chess.game.db.GameDataManager;
 
 import java.io.*;
 import java.net.ServerSocket;
