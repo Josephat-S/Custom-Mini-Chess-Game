@@ -56,7 +56,7 @@ A custom mini chess game built with Java Swing, featuring local gameplay, AI opp
 ### Technologies
 - *Language*: Java 17+
 - *UI Framework*: Swing
-- *Database*: PostgreSQL
+- *Database*: MySQL
 - *Network*: Java Socket Programming
 
 ### Key Components
