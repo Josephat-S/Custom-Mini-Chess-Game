@@ -9,9 +9,19 @@ public class Leader extends Piece {
 
     @Override
     public boolean canMove(int toRow, int toCol) {
-        return Math.abs(toRow - row) <= 1 && Math.abs(toCol - col) <= 1;
+        // Prevent no-op move
+        if (toRow == row && toCol == col) return false;
+
+        int dr = Math.abs(toRow - row);
+        int dc = Math.abs(toCol - col);
+
+        // Must be within one square in any direction (orthogonal or diagonal)
+        if (dr > 1 || dc > 1) return false;
+
+        // Board bounds (5x5)
+        return toRow >= 0 && toRow < 5 && toCol >= 0 && toCol < 5;
     }
 
     @Override
-    public String getSymbol() { return "L"; }
+    public String getSymbol() {return"L";}
 }
