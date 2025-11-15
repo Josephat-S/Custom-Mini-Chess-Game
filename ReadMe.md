@@ -1,153 +1,117 @@
-## 🧩 Mini-Chess Game
 
-The Mini-Chess Game project is a simplified, educational chess system designed to demonstrate the integration of game logic, database design, and user interaction. The project is developed by a student team as part of a software development course, focusing on collaboration, planning, and database management.
+# 🧩 Mini Chess Game
 
-## 🏗️ Current Progress
-
-- Requirements and system scope defined
-- mini.chess.game.db design and ER diagram completed
-- GitHub repository prepared for documentation and future implementation
-- Console game playable (human vs human, human vs AI)
-- Basic AI upgraded to strategic alpha-beta search with difficulty levels
-- Simulation runner added for bulk AI-vs-AI testing
+A custom mini chess game built with Java Swing, featuring local gameplay, AI opponent, LAN multiplayer, and a competitive leaderboard system.
 
 ## 👥 Team Members
+- Josephat Sangwa
 
-Josephat Sangwa
+- Josiane Nikuze
 
-Josiane Nikuze
+- Ezechiel Ukwishaka
 
-Ezechiel Ukwishaka
+- Augustin Bizumuremyi
 
-Augustin Bizumuremyi
+- Clementine Nabayo
 
-Clementine Nabayo
+## 📋 Features
 
-## ⚙️ Technologies (Planned)
+### 🎮 Game Modes
+- *Local Game*: Play against another human player or an AI opponent on the same machine
+- *LAN Multiplayer*: Host or join games over local network
+- *Save/Load*: Save your progress and resume games later
 
-Oracle mini.chess.game.db – for data storage and management
+### 🏆 Leaderboard System
+- View global player rankings based on scores
+- Real-time score tracking from database
+- Automatic score updates when games are won
+- Rank, player name, and score display
 
-Java – for backend game logic
+### 🎯 Gameplay Features
+- 5×5 custom chess board
+- Two piece types: Leader (♔) and Soldier (♙)
+- Turn-based movement system
+- Win condition tracking
+- Move history recording
+- Real-time board synchronization in LAN games
 
-GitHub – for version control and collaboration
+### 🔐 User Authentication
+- Secure login and registration system
+- User session management
+- Player profile tracking
 
-## Game Rules:
+### 🌐 Network Features
+- Server-client architecture for LAN games
+- Automatic firewall rule management (Windows)
+- IPv4 address detection
+- Move synchronization across network
 
-This project implements basic check, checkmate, and draw detection in addition to leader capture. The game ends when a Leader is captured, checkmate occurs (opponent has no legal moves while in check), or a draw situation is reached (opponent has no legal moves and is not in check).
+### 🤖 AI Opponent
+- Configurable search depth
+- Strategic move evaluation
+- Minimax algorithm implementation
 
-## Board Setup
-- The game is played on a 5x5 grid.
-- Each player controls two types of pieces:
-  - **Leader (L)**
-  - **Soldier (S)**
-- Initial positions:
-  - **Player1:** Leader at (4,2), Soldiers at (3,1) and (3,3)
-  - **Player2:** Leader at (0,2), Soldiers at (1,1) and (1,3)
+## 🛠 Technical Stack
 
-## Piece Movement
+### Technologies
+- *Language*: Java 17+
+- *UI Framework*: Swing
+- *Database*: PostgreSQL
+- *Network*: Java Socket Programming
 
-### Leader (L)
-- Moves one square in any direction (orthogonal or diagonal).
-- Symbol: `L`
-- Example: From (4,2), valid moves are (3,1), (3,2), (3,3), (4,1), (4,3), (5,1), (5,2), (5,3) [assuming within board bounds].
+### Key Components
 
-### Soldier (S)
-- Moves forward one square (no diagonal or sideways movement).
-- Symbol: `S`
-- Direction:
-  - **Player1 Soldiers:** Move upward (from higher row to lower row).
-  - **Player2 Soldiers:** Move downward (from lower row to higher row).
-- Example: A Player1 Soldier at (3,1) can only move to (2,1).
+#### GUI Layer (src/mini/chess/game/GUI/)
+- GameUI.java - Main application frame with CardLayout navigation
+- GameBoardPanel.java - Interactive chess board display
+- LeaderboardPanel.java - Ranking and score display
+- LanHostPanel.java - LAN game hosting interface
+- LanJoinPanel.java - LAN game joining interface
+- UIConstants.java - Centralized styling constants
 
-## Move Rules
-- Players alternate turns.
-- On your turn, enter move as: `fromRow fromCol toRow toCol` (e.g., `3 1 2 1`).
-- You may only move your own pieces.
-- A move is only valid if:
-  - The destination square is within move rules for that piece.
-  - The destination square is empty or contains an opponent’s piece (which will be captured).
-  - You cannot move onto a square occupied by your own piece.
+#### Game Logic (src/mini/chess/game/Models/)
+- Board.java - Board state management
+- Piece.java - Abstract piece class
+- Leader.java - Leader piece (moves 1 square in any direction)
+- Soldier.java - Soldier piece (moves 1 square forward/sideways)
+- Move.java - Move representation
+- AIPlayer.java - AI move calculation
 
-## Captures
-- If a piece moves to a square occupied by an opponent’s piece, the opponent’s piece is captured and removed from the board.
-- Captures are announced in the console.
+#### Database Layer (src/mini/chess/game/db/)
+- DBConnection.java - Database connection pool
+- AuthManager.java - User authentication
+- GameDataManager.java - Game state persistence
 
-## Win Condition
-- The game ends immediately when a player's **Leader** is captured.
-- The player who captures the opponent’s Leader wins.
-- If both Leaders remain, the game continues.
+#### Network Layer (src/mini/chess/game/Network/)
+- Server.java - LAN game server
+- Client.java - LAN game client
 
-## User Interface
-- The board is displayed as a grid with `[L]` for Leader, `[S]` for Soldier, and `[ ]` for empty.
-- Players enter moves via console input.
+#### Utilities (src/mini/chess/game/utils/)
+- GameDataManager.java - Game data operations
+- NetworkInfo.java - Network interface detection
+- FirewallRuleManager.java - Windows firewall automation
 
-## Example Game
-Initial Board:
-```
-[ ] [ ] [L] [ ] [ ]
-[ ] [S] [ ] [S] [ ]
-[ ] [ ] [ ] [ ] [ ]
-[ ] [S] [ ] [S] [ ]
-[ ] [ ] [L] [ ] [ ]
-```
-(Player1 at bottom, Player2 at top)
+## 🗄 Database Schema
 
-## Other Notes
-- No special moves (castling, pawn promotion, en passant, etc.).
-- Simplified rules tailored to 5x5 mini-chess.
-- The engine detects Check, Checkmate, and basic Draw (no legal moves) conditions.
+### Tables
+- *users*: User accounts (user_id, username, password_hash)
+- *players*: Player profiles (player_id, user_id, score)
+- *games*: Game records (game_id, type, status, start_time, end_time)
+- *players_games*: Game participation (game_id, player_one_id, player_two_id, winner_id)
+- *moves*: Move history (game_id, player_id, move_number, from_cell, to_cell)
+- *gamestate*: Board snapshots (game_id, player_turn, board_data, last_move)
 
-## References
-- [Board initialization code](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Board.java)
-- [Piece movement rules](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Leader.java), [Soldier movement](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Soldier.java)
-- [Win condition](https://github.com/Josephat-S/Custom-Mini-Chess-Game/blob/main/src/Models/Board.java#L61-L78)
+### Views
+- *leaderboards*: Player rankings with rank, username, and score
 
-
-
-## 🤖 AI Logic Flow
-
-The AI uses a minimax search with alpha–beta pruning on the 5x5 board.
-- Move generation: `Board.getAllLegalMoves(player)` returns only moves that don’t leave your Leader in check.
-- Search: Alternates turns down to a fixed depth (configurable). Alpha–beta cuts branches that can’t affect the final decision.
-- Evaluation: At leaves (or when no moves), the position is scored by:
-  - Material: `Leader = 100`, `Soldier = 3`
-  - Mobility: difference in the number of legal moves
-  - Checks: small bonus when opponent is in check, penalty if self is in check
-  - Terminal leader capture is treated as a huge win/loss
-- Tie-breaking: When multiple moves share top score, one is chosen at random for variety.
-
-Key classes/methods:
-- `mini.chess.game.Models.AIPlayer`
-  - `setSearchDepth(int)` – set difficulty (0 = random, 1..3 = deeper search)
-  - `chooseBestMove(Board, String)` / `makeBestMove(Board, String)`
-  - `chooseRandomMove(Board, String)` / `makeRandomMove(Board, String)`
-- `mini.chess.game.Models.Board`
-  - `getAllLegalMoves(String)` – legal moves that keep Leader safe
-  - `isLeaderInCheck(String)` – used in evaluation and status logic
-  - Internal helpers for search: silent `applyMoveSilently` / `undoMoveSilently`
-
-## 🎮 Playing vs AI (Console)
-- Run `mini.chess.game.app.Main`.
-- Choose game mode "Play vs Computer (AI)" and pick sides.
-- Choose difficulty:
-  - 1) Random (no lookahead)
-  - 2) Depth 1
-  - 3) Depth 2 (default)
-  - 4) Depth 3
-
-## 📊 Simulation Runner (Batch AI vs AI)
-Run many games automatically to evaluate performance across settings.
-
-Usage:
-```
-java mini.chess.game.app.SimulationRunner [games] [p1Depth] [p2Depth] [seed]
-```
-Examples:
-```
-# 50 games, both AIs at depth 2 (default)
-java mini.chess.game.app.SimulationRunner
-
-# 200 games, P1 depth=3 vs P2 depth=1, with fixed seed for reproducibility
-java mini.chess.game.app.SimulationRunner 200 3 1 12345
-```
-The runner prints totals: Player1 wins, Player2 wins, and Draws.
+```sql
+CREATE OR REPLACE VIEW leaderboards AS
+SELECT 
+    p.player_id,
+    u.username,
+    p.score,
+    ROW_NUMBER() OVER (ORDER BY p.score DESC, p.player_id ASC) AS rank_no
+FROM players p
+JOIN users u ON p.user_id = u.user_id
+WHERE p.score > 0
+ORDER BY p.score DESC;
