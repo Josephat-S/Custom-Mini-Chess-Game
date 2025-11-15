@@ -15,7 +15,6 @@ public class GameDataManager {
     public static class GameCreateResult {
         public final int gameId;
         public final int playerId;
-
         public GameCreateResult(int gameId, int playerId) {
             this.gameId = gameId;
             this.playerId = playerId;
@@ -52,45 +51,44 @@ public class GameDataManager {
             if (conn == null) return new GameCreateResult(-1, -1);
             conn.setAutoCommit(false);
             try {
-                String insertGame = "INSERT INTO games (`type`, `start_time`, `status`) VALUES (?, NOW(), ?)";
+                int playerId = getOrCreatePlayerId(userId);
+                if (playerId == -1) {
+                    conn.rollback();
+                    return new GameCreateResult(-1, -1);
+                }
                 int gameId;
-                try (PreparedStatement ps = conn.prepareStatement(insertGame, Statement.RETURN_GENERATED_KEYS)) {
-                    ps.setString(1, "lan");
-                    ps.setString(2, "ongoing");
+                String insGame = "INSERT INTO games (type, status, start_time) VALUES ('lan','ongoing',CURRENT_TIMESTAMP)";
+                try (PreparedStatement ps = conn.prepareStatement(insGame, Statement.RETURN_GENERATED_KEYS)) {
                     ps.executeUpdate();
                     try (ResultSet rs = ps.getGeneratedKeys()) {
-                        rs.next();
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return new GameCreateResult(-1, -1);
+                        }
                         gameId = rs.getInt(1);
                     }
                 }
-
-                int playerId = getOrCreatePlayerId(userId);
-                if (playerId == -1) throw new SQLException("Player creation failed");
-
-                String insertPlayersGames = "INSERT INTO players_games (game_id, player_one_id, player_two_id) VALUES (?, ?, NULL)";
-                try (PreparedStatement ps = conn.prepareStatement(insertPlayersGames)) {
+                String insPG = "INSERT INTO players_games (game_id, player_one_id) VALUES (?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insPG)) {
                     ps.setInt(1, gameId);
                     ps.setInt(2, playerId);
                     ps.executeUpdate();
                 }
-
-                String insertState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
-                try (PreparedStatement ps = conn.prepareStatement(insertState)) {
+                String insState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, NULL)";
+                try (PreparedStatement ps = conn.prepareStatement(insState)) {
                     ps.setInt(1, gameId);
                     ps.setInt(2, currentPlayerTurn);
-                    ps.setString(3, boardJson != null ? boardJson : "[]");
-                    ps.setString(4, "initial");
+                    ps.setString(3, boardJson);
                     ps.executeUpdate();
                 }
-
                 conn.commit();
-                conn.setAutoCommit(true);
                 return new GameCreateResult(gameId, playerId);
-            } catch (SQLException ex) {
+            } catch (SQLException e) {
                 conn.rollback();
-                System.err.println("createLanGameForHost failed: " + ex.getMessage());
-                conn.setAutoCommit(true);
+                System.err.println("createLanGameForHost failed: " + e.getMessage());
                 return new GameCreateResult(-1, -1);
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             System.err.println("DB connect error in createLanGameForHost: " + e.getMessage());
@@ -107,7 +105,8 @@ public class GameDataManager {
             try (PreparedStatement ps = conn.prepareStatement(updateQuery)) {
                 ps.setInt(1, playerId);
                 ps.setInt(2, gameId);
-                ps.executeUpdate();
+                int upd = ps.executeUpdate();
+                if (upd == 0) return -1;
             }
             return playerId;
         } catch (SQLException e) {
@@ -122,36 +121,33 @@ public class GameDataManager {
             if (conn == null) return false;
             conn.setAutoCommit(false);
             try {
-                String insertMove = "INSERT INTO moves (game_id, player_id, move_number, from_cell, to_cell) VALUES (?, ?, ?, ?, ?)";
-                try (PreparedStatement ps = conn.prepareStatement(insertMove)) {
+                int playerTurn = getPlayerNumberForGame(conn, gameId, playerId);
+                String insMove = "INSERT INTO moves (game_id, player_id, move_number, from_cell, to_cell) VALUES (?,?,?,?,?)";
+                try (PreparedStatement ps = conn.prepareStatement(insMove)) {
                     ps.setInt(1, gameId);
                     ps.setInt(2, playerId);
-                    ps.setInt(3, moveNumber);
+                    if (moveNumber != null) ps.setInt(3, moveNumber); else ps.setNull(3, Types.INTEGER);
                     ps.setString(4, fromCell);
                     ps.setString(5, toCell);
                     ps.executeUpdate();
                 }
-
-                int nextTurn = getPlayerNumberForGame(conn, gameId, playerId) == 1 ? 2 : 1;
-                String lastMove = fromCell + "->" + toCell;
-
-                String insertState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
-                try (PreparedStatement ps = conn.prepareStatement(insertState)) {
+                String insState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?,?,?,?)";
+                try (PreparedStatement ps = conn.prepareStatement(insState)) {
+                    int nextTurn = playerTurn == 1 ? 2 : 1;
                     ps.setInt(1, gameId);
                     ps.setInt(2, nextTurn);
                     ps.setString(3, boardJson);
-                    ps.setString(4, lastMove);
+                    ps.setString(4, fromCell + "->" + toCell);
                     ps.executeUpdate();
                 }
-
                 conn.commit();
-                conn.setAutoCommit(true);
                 return true;
-            } catch (SQLException ex) {
+            } catch (SQLException e) {
                 conn.rollback();
-                System.err.println("recordMoveAndUpdateState failed: " + ex.getMessage());
-                conn.setAutoCommit(true);
+                System.err.println("recordMoveAndUpdateState failed: " + e.getMessage());
                 return false;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             System.err.println("DB connect error in recordMoveAndUpdateState: " + e.getMessage());
@@ -165,8 +161,10 @@ public class GameDataManager {
             ps.setInt(1, gameId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    if (rs.getInt("player_one_id") == playerId) return 1;
-                    if (rs.getInt("player_two_id") == playerId) return 2;
+                    int p1 = rs.getInt("player_one_id");
+                    int p2 = rs.getInt("player_two_id");
+                    if (playerId == p1) return 1;
+                    if (playerId == p2) return 2;
                 }
             }
         }
@@ -177,13 +175,17 @@ public class GameDataManager {
         List<Integer> savedGames = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) return savedGames;
-            String query = "SELECT g.game_id FROM games g JOIN players_games pg ON g.game_id = pg.game_id JOIN players p ON pg.player_one_id = p.player_id OR pg.player_two_id = p.player_id WHERE p.user_id = ?";
+            String query = """
+                SELECT DISTINCT g.game_id
+                FROM games g
+                JOIN players_games pg ON g.game_id = pg.game_id
+                JOIN players p ON pg.player_one_id = p.player_id OR pg.player_two_id = p.player_id
+                WHERE p.user_id = ?
+                """;
             try (PreparedStatement ps = conn.prepareStatement(query)) {
                 ps.setInt(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        savedGames.add(rs.getInt("game_id"));
-                    }
+                    while (rs.next()) savedGames.add(rs.getInt(1));
                 }
             }
         } catch (SQLException e) {
@@ -200,9 +202,7 @@ public class GameDataManager {
             try (PreparedStatement ps = conn.prepareStatement(query)) {
                 ps.setInt(1, gameId);
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        boardJson = rs.getString("board_data");
-                    }
+                    if (rs.next()) boardJson = rs.getString(1);
                 }
             }
         } catch (SQLException e) {
@@ -214,52 +214,40 @@ public class GameDataManager {
     public static boolean saveUnfinishedGameWithBoardData(int userId, String boardJson, int currentTurn) {
         int playerId = getOrCreatePlayerId(userId);
         if (playerId == -1) return false;
-
         try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) return false;
             conn.setAutoCommit(false);
             try {
-                Integer gameId = null;
-                String qGame = "SELECT pg.game_id FROM players_games pg JOIN games g ON pg.game_id = g.game_id WHERE (pg.player_one_id = ? OR pg.player_two_id = ?) AND g.status = 'ongoing' ORDER BY pg.pg_id DESC LIMIT 1";
-                try (PreparedStatement ps = conn.prepareStatement(qGame)) {
-                    ps.setInt(1, playerId);
-                    ps.setInt(2, playerId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) gameId = rs.getInt("game_id");
-                    }
-                }
-
-                if (gameId == null) {
-                    String insGame = "INSERT INTO games (type, start_time, status) VALUES ('lan', NOW(), 'ongoing')";
-                    try (PreparedStatement ps = conn.prepareStatement(insGame, Statement.RETURN_GENERATED_KEYS)) {
-                        ps.executeUpdate();
-                        try (ResultSet rs = ps.getGeneratedKeys()) {
-                            if (rs.next()) gameId = rs.getInt(1);
+                int gameId;
+                String insGame = "INSERT INTO games (type, status, start_time) VALUES ('single_mode','paused',CURRENT_TIMESTAMP)";
+                try (PreparedStatement ps = conn.prepareStatement(insGame, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.executeUpdate();
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return false;
                         }
-                    }
-                    if (gameId == null) throw new SQLException("Failed to create game");
-                    String insPg = "INSERT INTO players_games (game_id, player_one_id, player_two_id) VALUES (?, ?, NULL)";
-                    try (PreparedStatement ps = conn.prepareStatement(insPg)) {
-                        ps.setInt(1, gameId);
-                        ps.setInt(2, playerId);
-                        ps.executeUpdate();
+                        gameId = rs.getInt(1);
                     }
                 }
-
-                String insState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?, ?, ?, ?)";
+                String insPG = "INSERT INTO players_games (game_id, player_one_id) VALUES (?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insPG)) {
+                    ps.setInt(1, gameId);
+                    ps.setInt(2, playerId);
+                    ps.executeUpdate();
+                }
+                String insState = "INSERT INTO gamestate (game_id, player_turn, board_data, last_move) VALUES (?,?,?,NULL)";
                 try (PreparedStatement ps = conn.prepareStatement(insState)) {
                     ps.setInt(1, gameId);
                     ps.setInt(2, currentTurn);
-                    ps.setString(3, boardJson != null && !boardJson.isEmpty() ? boardJson : "[]");
-                    ps.setString(4, "autosave");
+                    ps.setString(3, boardJson);
                     ps.executeUpdate();
                 }
-
                 conn.commit();
                 return true;
-            } catch (SQLException ex) {
+            } catch (SQLException e) {
                 conn.rollback();
-                System.err.println("saveUnfinishedGameWithBoardData failed: " + ex.getMessage());
+                System.err.println("saveUnfinishedGameWithBoardData failed: " + e.getMessage());
                 return false;
             } finally {
                 conn.setAutoCommit(true);
@@ -296,13 +284,18 @@ public class GameDataManager {
 
     public static Board boardFromStringForNetwork(String json) {
         Board board = new Board();
+        final int SIZE = 5;
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                board.setPiece(r, c, null);
+            }
+        }
         if (json == null) return board;
         String trimmed = json.trim();
         if (trimmed.isEmpty() || trimmed.equals("[]")) return board;
         if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return board;
         String inner = trimmed.substring(1, trimmed.length() - 1).trim();
         if (inner.isEmpty()) return board;
-
         String[] items = inner.split("\\},\\s*\\{");
         for (int i = 0; i < items.length; i++) {
             String it = items[i];
@@ -317,8 +310,7 @@ public class GameDataManager {
             switch (type) {
                 case "Leader" -> p = new Leader(row, col, player);
                 case "Soldier" -> p = new Soldier(row, col, player);
-                default -> {
-                }
+                default -> { }
             }
             if (p != null) board.setPiece(row, col, p);
         }
@@ -365,4 +357,73 @@ public class GameDataManager {
             return null;
         }
     }
+    public static boolean updatePlayerScore(int playerId, int scoreIncrement) {
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return false;
+            conn.setAutoCommit(false);
+            try {
+                String updateScore = "UPDATE players SET score = score + ? WHERE player_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateScore)) {
+                    ps.setInt(1, scoreIncrement);
+                    ps.setInt(2, playerId);
+                    int rowsAffected = ps.executeUpdate();
+
+                    if (rowsAffected == 0) {
+                        conn.rollback();
+                        System.err.println("updatePlayerScore: No player found with ID " + playerId);
+                        return false;
+                    }
+                }
+                conn.commit();
+                System.out.println("✓ Updated player " + playerId + " score by +" + scoreIncrement);
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                System.err.println("updatePlayerScore failed: " + e.getMessage());
+                e.printStackTrace();
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.err.println("updatePlayerScore connection error: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    public static boolean markGameAsComplete(int gameId, int winnerId) {
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return false;
+            conn.setAutoCommit(false);
+            try {
+                String updateGame = "UPDATE games SET status = 'done', end_time = CURRENT_TIMESTAMP WHERE game_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateGame)) {
+                    ps.setInt(1, gameId);
+                    ps.executeUpdate();
+                }
+
+                String updatePlayersGames = "UPDATE players_games SET winner_id = ? WHERE game_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updatePlayersGames)) {
+                    ps.setInt(1, winnerId);
+                    ps.setInt(2, gameId);
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                System.err.println("markGameAsComplete failed: " + e.getMessage());
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.err.println("DB connect error in markGameAsComplete: " + e.getMessage());
+            return false;
+        }
+    }
+
 }
