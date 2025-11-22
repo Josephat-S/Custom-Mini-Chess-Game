@@ -1,4 +1,7 @@
 -- sql
+-- Add action column to user_logs for audit messages
+ALTER TABLE `user_logs`
+  ADD COLUMN `action` VARCHAR(100) DEFAULT NULL AFTER `log_time`;-- sql
 -- phpMyAdmin SQL Dump
 -- version 5.2.1
 -- https://www.phpmyadmin.net/

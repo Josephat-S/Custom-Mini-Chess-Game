@@ -1,8 +1,10 @@
+// java
 package mini.chess.game.GUI;
 
 import mini.chess.game.Models.Board;
 import mini.chess.game.Network.Client;
 import mini.chess.game.utils.GameDataManager;
+import mini.chess.game.utils.LogManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -119,6 +121,10 @@ class LanJoinPanel extends JPanel {
                         Integer pid = parsePlayerIdFromHelloAck(incoming);
                         if (pid != null) {
                             playerId = pid;
+                            // log joined (if gameId already known)
+                            if (gameId != null) {
+                                LogManager.logAction(userId, "JOINED_GAME " + gameId);
+                            }
                         }
                         SwingUtilities.invokeLater(() -> statusLabel.setText("Status: Joined game"));
                         ensureBoardPanel();

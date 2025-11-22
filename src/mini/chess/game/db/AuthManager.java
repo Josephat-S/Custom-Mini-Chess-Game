@@ -67,11 +67,16 @@ public class AuthManager {
     public static int login(String username, String password) {
         String hashed = sha256(password);
         try (Connection conn = DBConnection.getConnection()) {
-            String q = "SELECT user_id, password_hash FROM users WHERE username = ?";
+            String q = "SELECT user_id, password_hash, is_locked FROM users WHERE username = ?";
             try (PreparedStatement ps = conn.prepareStatement(q)) {
                 ps.setString(1, username);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
+                        // Check lock status first
+                        if (rs.getInt("is_locked") == 1) {
+                            return -2; // Special code for locked account
+                        }
+
                         String stored = rs.getString("password_hash");
                         int userId = rs.getInt("user_id");
                         if (stored != null && stored.equals(hashed)) {
@@ -122,5 +127,20 @@ public class AuthManager {
             System.err.println("getPlayerIdForUser failed: " + e.getMessage());
         }
         return -1;
+    }
+    // Check if user is admin
+    public static boolean isAdmin(int userId) {
+        try (Connection conn = DBConnection.getConnection()) {
+            String query = "SELECT 1 FROM admins WHERE user_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("isAdmin check failed: " + e.getMessage());
+            return false;
+        }
     }
 }

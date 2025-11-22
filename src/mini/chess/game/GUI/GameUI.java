@@ -3,10 +3,15 @@ package mini.chess.game.GUI;
 import mini.chess.game.Models.Board;
 import mini.chess.game.db.AuthManager;
 import mini.chess.game.utils.GameDataManager;
+import mini.chess.game.utils.LogManager;
 
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * Main application UI for Mini Chess.
+ * Minor changes: records LOGIN, REGISTER and LOGOUT actions using LogManager.
+ */
 public class GameUI extends JFrame {
 
     private final CardLayout cardLayout = new CardLayout();
@@ -67,23 +72,33 @@ public class GameUI extends JFrame {
 
         submit.addActionListener(e -> {
             String u = userField.getText().trim();
-            String p = new String(passField.getPassword());
+            String p = new String(passField.getPassword()).trim();
             if (u.isEmpty() || p.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Enter credentials", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Username and password are required", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+
             if (isLogin) {
                 int id = AuthManager.login(u, p);
-                if (id != -1) {
-                    userId = id;
-                    cardLayout.show(mainPanel, "MENU");
+                if (id == -2) {
+                    JOptionPane.showMessageDialog(this, "Account is locked. Contact admin.", "Access Denied", JOptionPane.ERROR_MESSAGE);
+                } else if (id != -1) {
+                    userId = id; // set before logging
+                    LogManager.logAction(userId, "LOGIN");
+                    
+                    if (AuthManager.isAdmin(userId)) {
+                        showAdminDashboard();
+                    } else {
+                        cardLayout.show(mainPanel, "MENU");
+                    }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Login failed", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Invalid credentials", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } else {
                 int id = AuthManager.register(u, p);
                 if (id != -1) {
-                    userId = id;
+                    userId = id; // set before logging
+                    LogManager.logAction(userId, "REGISTER");
                     cardLayout.show(mainPanel, "MENU");
                 } else {
                     JOptionPane.showMessageDialog(this, "Registration failed", "Error", JOptionPane.ERROR_MESSAGE);
@@ -132,8 +147,14 @@ public class GameUI extends JFrame {
         loadGameBtn.addActionListener(e -> loadSavedGame());
         leaderboardBtn.addActionListener(e -> showLeaderboard());
         exitBtn.addActionListener(e -> {
-            int c = JOptionPane.showConfirmDialog(this, "Exit application?", "Confirm", JOptionPane.YES_NO_OPTION);
-            if (c == JOptionPane.YES_OPTION) dispose();
+            int c = JOptionPane.showConfirmDialog(this, "Are you sure you want to exit?", "Confirm", JOptionPane.YES_NO_OPTION);
+            if (c == JOptionPane.YES_OPTION) {
+                if (userId != -1) {
+                    LogManager.logAction(userId, "LOGOUT");
+                    userId = -1;
+                }
+                dispose();
+            }
         });
 
         JPanel buttonPanel = new JPanel(new GridLayout(6, 1, 0, 15));
@@ -158,7 +179,7 @@ public class GameUI extends JFrame {
 
     private void startHostLanGame() {
         if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "Please login first", "Info", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "You must be logged in to host a LAN game", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         LanHostPanel hostPanel = new LanHostPanel(userId, () -> cardLayout.show(mainPanel, "MENU"));
@@ -169,7 +190,7 @@ public class GameUI extends JFrame {
 
     private void startJoinLanGame() {
         if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "Please login first", "Info", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "You must be logged in to join a LAN game", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         LanJoinPanel joinPanel = new LanJoinPanel(userId, () -> cardLayout.show(mainPanel, "MENU"));
@@ -180,17 +201,17 @@ public class GameUI extends JFrame {
 
     private void startNewLocalGame() {
         if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "Please login first", "Info", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "You must be logged in to start a game", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         String[] options = {"Human", "AI"};
         int choice = JOptionPane.showOptionDialog(
                 this,
-                "Choose your opponent:",
+                "Choose opponent",
                 "New Local Game",
                 JOptionPane.DEFAULT_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.PLAIN_MESSAGE,
                 null,
                 options,
                 options[0]
@@ -202,7 +223,7 @@ public class GameUI extends JFrame {
         Board board = new Board();
         GameDataManager.GameCreateResult res = GameDataManager.createLanGameForHost(userId, board, 1);
         if (res.gameId == -1) {
-            JOptionPane.showMessageDialog(this, "Failed to create game in DB", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Failed to create game", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -212,9 +233,20 @@ public class GameUI extends JFrame {
         cardLayout.show(mainPanel, card);
     }
 
+    private void showAdminDashboard() {
+        AdminDashboardPanel adminPanel = new AdminDashboardPanel(userId, () -> {
+            LogManager.logAction(userId, "LOGOUT");
+            userId = -1;
+            cardLayout.show(mainPanel, "LOGIN");
+        });
+        String card = "ADMIN_" + System.currentTimeMillis();
+        mainPanel.add(adminPanel, card);
+        cardLayout.show(mainPanel, card);
+    }
+
     private void loadSavedGame() {
         if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "Please login first", "Info", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "You must be logged in to load saved games", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         java.util.List<Integer> savedGames = GameDataManager.listSavedGamesForUser(userId);
@@ -237,14 +269,9 @@ public class GameUI extends JFrame {
             int gameId = Integer.parseInt(selected.split(": ")[1]);
             Board board = GameDataManager.loadGameById(gameId);
             if (board != null) {
-                GameDataManager.GameCreateResult res = GameDataManager.createLanGameForHost(userId, board, 1);
-                if (res.gameId == -1) {
-                    JOptionPane.showMessageDialog(this, "Failed to open saved game", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                GameBoardPanel gameBoardPanel = new GameBoardPanel(res.gameId, res.playerId, board, false);
-                String card = "GAME_" + res.gameId;
-                mainPanel.add(gameBoardPanel, card);
+                GameBoardPanel gb = new GameBoardPanel(gameId, 0, board, false);
+                String card = "GAME_" + gameId;
+                mainPanel.add(gb, card);
                 cardLayout.show(mainPanel, card);
             } else {
                 JOptionPane.showMessageDialog(this, "Failed to load game", "Error", JOptionPane.ERROR_MESSAGE);

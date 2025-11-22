@@ -1,3 +1,4 @@
+// java
 package mini.chess.game.GUI;
 
 import mini.chess.game.Models.Board;
@@ -5,6 +6,7 @@ import mini.chess.game.Network.Server;
 import mini.chess.game.utils.GameDataManager;
 import mini.chess.game.utils.FirewallRuleManager;
 import mini.chess.game.utils.NetworkInfo;
+import mini.chess.game.utils.LogManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -110,6 +112,9 @@ public class LanHostPanel extends JPanel {
         hostPlayerId = res.playerId;
         gameIdLabel.setText("Game ID: " + gameId);
 
+        // record host action
+        LogManager.logAction(hostUserId, "HOSTED_GAME " + gameId);
+
         boardPanel = new GameBoardPanel(gameId, hostPlayerId, initialBoard, "Player1", new GameBoardPanel.MoveListener() {
             @Override
             public void onLocalMove(int fromRow, int fromCol, int toRow, int toCol, Board board) {
@@ -168,6 +173,8 @@ public class LanHostPanel extends JPanel {
                                 clientPlayerId = addedId;
                                 server.send("HELLO_ACK " + addedId);
                                 statusLabel.setText("Status: Client joined (playerId " + addedId + ")");
+                                // log client joined
+                                LogManager.logAction(hostUserId, "CLIENT_JOINED game=" + gameId + " playerId=" + addedId + " userId=" + clientUserId);
                             } else {
                                 statusLabel.setText("Status: Failed adding client");
                             }
