@@ -4,6 +4,7 @@ import mini.chess.game.Models.Board;
 import mini.chess.game.db.AuthManager;
 import mini.chess.game.utils.GameDataManager;
 import mini.chess.game.utils.LogManager;
+import mini.chess.game.utils.BackupManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -242,6 +243,11 @@ public class GameUI extends JFrame {
         String card = "ADMIN_" + System.currentTimeMillis();
         mainPanel.add(adminPanel, card);
         cardLayout.show(mainPanel, card);
+
+        // Trigger Automatic Backup
+        if (BackupManager.isInternetAvailable()) {
+            BackupManager.performBackup(this);
+        }
     }
 
     private void loadSavedGame() {
