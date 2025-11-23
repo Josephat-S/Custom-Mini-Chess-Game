@@ -20,6 +20,7 @@ public class LanHostPanel extends JPanel {
     private final JLabel statusLabel = UIConstants.createStyledLabel("Status: Initializing...");
     private final JLabel connLabel = UIConstants.createStyledLabel("Connection: Waiting...");
     private final JLabel gameIdLabel = UIConstants.createStyledLabel("Game ID: -");
+    private final JLabel firewallLabel = UIConstants.createStyledLabel("Firewall: Checking...");
     private final JButton stopButton = UIConstants.createStyledButton("🛑 Stop Hosting");
 
     private final Object boardLock = new Object();
@@ -51,11 +52,12 @@ public class LanHostPanel extends JPanel {
         setBackground(UIConstants.BACKGROUND_COLOR);
         setBorder(UIConstants.PADDING_BORDER);
 
-        JPanel topPanel = new JPanel(new GridLayout(1, 3, 15, 0));
+        JPanel topPanel = new JPanel(new GridLayout(2, 2, 15, 10));
         topPanel.setBackground(UIConstants.BACKGROUND_COLOR);
         topPanel.add(statusLabel);
         topPanel.add(connLabel);
         topPanel.add(gameIdLabel);
+        topPanel.add(firewallLabel);
         add(topPanel, BorderLayout.NORTH);
 
         JPanel rightPanel = new JPanel();
@@ -91,14 +93,56 @@ public class LanHostPanel extends JPanel {
             server = new Server(port);
             hostingPort = port;
 
-            FirewallRuleManager.addFirewallRule(port);
-
+            // Check admin privileges first
+            boolean isAdmin = FirewallRuleManager.isRunningAsAdmin();
+            
+            // Attempt to add firewall rule
+            boolean firewallOk = FirewallRuleManager.addFirewallRule(port);
+            
             String ip = NetworkInfo.getLocalIPv4();
             statusLabel.setText("Status: Listening on " + ip + ":" + port);
             connLabel.setText("Connection: Awaiting client...");
+            
+            // Update firewall status label
+            if (firewallOk) {
+                firewallLabel.setText("Firewall: Rule created ✓");
+                firewallLabel.setForeground(UIConstants.SUCCESS_COLOR);
+            } else {
+                if (!isAdmin) {
+                    firewallLabel.setText("Firewall: Warning - Not Admin");
+                    firewallLabel.setForeground(UIConstants.WARNING_COLOR);
+                    JOptionPane.showMessageDialog(this,
+                            "⚠ Not running as Administrator!\n\n" +
+                            "Firewall rule could not be created automatically.\n" +
+                            "Clients may not be able to connect.\n\n" +
+                            "Solutions:\n" +
+                            "1. Restart the application as Administrator (recommended)\n" +
+                            "2. Manually add firewall rule for port " + port + "\n" +
+                            "3. Temporarily disable Windows Firewall (not recommended)",
+                            "Administrator Rights Required",
+                            JOptionPane.WARNING_MESSAGE);
+                } else {
+                    firewallLabel.setText("Firewall: Rule creation failed");
+                    firewallLabel.setForeground(UIConstants.DANGER_COLOR);
+                }
+            }
+            
+            // Show connection instructions
+            if (firewallOk || isAdmin) {
+                JOptionPane.showMessageDialog(this,
+                        "🎮 Server is ready!\n\n" +
+                        "Share this information with other players:\n" +
+                        "• IP Address: " + ip + "\n" +
+                        "• Port: " + port + "\n\n" +
+                        "Clients should connect to: " + ip + ":" + port,
+                        "Server Ready",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
         } catch (IOException e) {
             statusLabel.setText("Status: Server error");
             connLabel.setText("Connection: " + e.getMessage());
+            firewallLabel.setText("Firewall: N/A");
+            firewallLabel.setForeground(UIConstants.TEXT_COLOR);
             return;
         }
 
@@ -142,10 +186,15 @@ public class LanHostPanel extends JPanel {
         Thread acceptThreadLocal = new Thread(() -> {
             try {
                 server.accept();
-                connLabel.setText("Connection: Client connected");
+                connLabel.setText("Connection: Client connected ✓");
+                connLabel.setForeground(UIConstants.SUCCESS_COLOR);
                 server.send("GAMEID " + gameId);
+            } catch (java.net.SocketTimeoutException e) {
+                connLabel.setText("Connection: Accept timeout (still listening)");
+                connLabel.setForeground(UIConstants.WARNING_COLOR);
             } catch (IOException e) {
-                connLabel.setText("Connection: Accept failed");
+                connLabel.setText("Connection: Accept failed - " + e.getMessage());
+                connLabel.setForeground(UIConstants.DANGER_COLOR);
             }
         }, "Host-Accept");
         acceptThread = acceptThreadLocal;

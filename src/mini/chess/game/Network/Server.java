@@ -5,8 +5,10 @@ import mini.chess.game.Models.Board;
 import mini.chess.game.utils.GameDataManager;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /*
@@ -26,9 +28,16 @@ public class Server implements Closeable {
     private BufferedReader in;
     private PrintWriter out;
     private final AtomicReference<String> lastLine = new AtomicReference<>(null);
+    private static final int ACCEPT_TIMEOUT_MS = 30000; // 30 seconds
 
     public Server(int port) throws IOException {
-        serverSocket = new ServerSocket(port);
+        serverSocket = new ServerSocket();
+        // Enable SO_REUSEADDR to prevent "address already in use" errors
+        serverSocket.setReuseAddress(true);
+        // Bind to all interfaces (0.0.0.0) to ensure LAN accessibility
+        serverSocket.bind(new InetSocketAddress("0.0.0.0", port));
+        // Set accept timeout to prevent indefinite blocking
+        serverSocket.setSoTimeout(ACCEPT_TIMEOUT_MS);
     }
 
     // blocking accept

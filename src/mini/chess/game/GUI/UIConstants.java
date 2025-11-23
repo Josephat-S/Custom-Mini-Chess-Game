@@ -12,6 +12,7 @@ public class UIConstants {
     public static final Color PRIMARY_COLOR_DARKER = new Color(0x2E, 0x7D, 0xC3);
     public static final Color SUCCESS_COLOR = new Color(0x4C, 0xAF, 0x50);
     public static final Color DANGER_COLOR = new Color(0xF4, 0x43, 0x36);
+    public static final Color WARNING_COLOR = new Color(0xFF, 0x98, 0x00);
     public static final Color TEXT_COLOR = new Color(0xE0, 0xE0, 0xE0);
     public static final Color BORDER_COLOR = new Color(0x55, 0x55, 0x55);
 

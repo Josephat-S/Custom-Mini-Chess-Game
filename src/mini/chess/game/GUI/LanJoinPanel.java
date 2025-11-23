@@ -5,6 +5,7 @@ import mini.chess.game.Models.Board;
 import mini.chess.game.Network.Client;
 import mini.chess.game.utils.GameDataManager;
 import mini.chess.game.utils.LogManager;
+import mini.chess.game.utils.NetworkInfo;
 
 import javax.swing.*;
 import java.awt.*;
@@ -82,12 +83,42 @@ class LanJoinPanel extends JPanel {
         }
 
         try {
+            statusLabel.setText("Status: Connecting...");
             client = new Client(hp.host, hp.port);
-            connLabel.setText("Connection: Connected to " + hp.host + ":" + hp.port);
+            connLabel.setText("Connection: Connected to " + hp.host + ":" + hp.port + " ✓");
+            connLabel.setForeground(UIConstants.SUCCESS_COLOR);
             statusLabel.setText("Status: Waiting for GAMEID...");
         } catch (IOException e) {
             statusLabel.setText("Status: Connect failed");
-            connLabel.setText("Connection: " + e.getMessage());
+            statusLabel.setForeground(UIConstants.DANGER_COLOR);
+            connLabel.setText("Error: " + e.getMessage());
+            connLabel.setForeground(UIConstants.DANGER_COLOR);
+            
+            // Show detailed error dialog
+            String errorMsg = e.getMessage();
+            String suggestions = "";
+            
+            if (errorMsg.contains("timeout")) {
+                suggestions = "\n\nPossible solutions:\n" +
+                        "• Verify the host is running and listening\n" +
+                        "• Check if firewall is blocking the connection\n" +
+                        "• Ensure you're on the same network";
+            } else if (errorMsg.contains("refused")) {
+                suggestions = "\n\nPossible solutions:\n" +
+                        "• Verify the host is running on port " + hp.port + "\n" +
+                        "• Check if the port number is correct";
+            } else if (errorMsg.contains("unreachable")) {
+                suggestions = "\n\nPossible solutions:\n" +
+                        "• Check your network connection\n" +
+                        "• Verify the IP address is correct\n" +
+                        "• Ensure you're on the same LAN/WLAN";
+            }
+            
+            JOptionPane.showMessageDialog(this,
+                    "Failed to connect to " + hp.host + ":" + hp.port + "\n\n" +
+                    "Error: " + errorMsg + suggestions,
+                    "Connection Failed",
+                    JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -210,7 +241,19 @@ class LanJoinPanel extends JPanel {
         JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
         form.add(UIConstants.createStyledLabel("Host/IP:"));
         JTextField hostField = UIConstants.createStyledTextField(16);
-        hostField.setText("127.0.0.1");
+        
+        // Try to guess a reasonable default IP for LAN
+        String localIp = NetworkInfo.getLocalIPv4();
+        String defaultHost = "192.168.1.1"; // Common router/gateway
+        if (localIp != null && !localIp.equals("Unknown") && localIp.startsWith("192.168.")) {
+            // Use the same subnet but .1 as default (common for routers/hosts)
+            String[] parts = localIp.split("\\.");
+            if (parts.length == 4) {
+                defaultHost = parts[0] + "." + parts[1] + "." + parts[2] + ".1";
+            }
+        }
+        hostField.setText(defaultHost);
+        
         form.add(hostField);
         form.add(UIConstants.createStyledLabel("Port:"));
         JTextField portField = UIConstants.createStyledTextField(6);
