@@ -160,11 +160,27 @@ class LanJoinPanel extends JPanel {
                         SwingUtilities.invokeLater(() -> statusLabel.setText("Status: Joined game"));
                         ensureBoardPanel();
                     } else if (incoming.startsWith("SYNC ")) {
-                        String boardJson = incoming.substring(5);
+                        String rest = incoming.substring(5);
+                        // Enhanced protocol: "SYNC <turn> <boardJson>"
+                        // Parse turn and board data
+                        String turn = null;
+                        String boardJson = rest;
+                        
+                        // Check if message includes turn information
+                        if (rest.startsWith("Player1 ") || rest.startsWith("Player2 ")) {
+                            int spaceIndex = rest.indexOf(' ');
+                            if (spaceIndex > 0) {
+                                turn = rest.substring(0, spaceIndex);
+                                boardJson = rest.substring(spaceIndex + 1);
+                            }
+                        }
+                        
+                        String finalTurn = turn;
                         Board newBoard = GameDataManager.boardFromStringForNetwork(boardJson);
                         SwingUtilities.invokeLater(() -> {
                             ensureBoardPanel();
-                            boardPanel.applyExternalSync(newBoard, "Player2");
+                            // Use the turn from the message if available, otherwise default to Player2
+                            boardPanel.applyExternalSync(newBoard, finalTurn != null ? finalTurn : "Player2");
                             String winner = newBoard.checkWinner();
                             if (winner != null) {
                                 boardPanel.setGameOver(winner);
@@ -206,9 +222,10 @@ class LanJoinPanel extends JPanel {
                 if (!running.get() || gameOver.get()) return;
                 try {
                     synchronized (boardLock) {
+                        // Send move to host - don't call applyExternalSync on local board!
+                        // GameBoardPanel already handles turn switching locally
                         client.send("MOVE " + fromRow + " " + fromCol + " " + toRow + " " + toCol);
                     }
-                    boardPanel.applyExternalSync(board, "Player1");
                     statusLabel.setText("Status: Move sent. Waiting for host...");
                 } catch (Exception ex) {
                     statusLabel.setText("Status: Send failed");

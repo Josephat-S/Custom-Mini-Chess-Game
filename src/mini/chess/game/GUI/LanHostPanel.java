@@ -167,8 +167,12 @@ public class LanHostPanel extends JPanel {
                     GameDataManager.recordMoveAndUpdateState(gameId, hostPlayerId, moveCounter.getAndIncrement(),
                             fromRow + "_" + fromCol, toRow + "_" + toCol, board);
                 }
-                if (server != null) server.send("SYNC " + GameDataManager.boardToStringForNetwork(board));
-                boardPanel.applyExternalSync(board, "Player2");
+                // Send the updated board to the client with turn information
+                // Host (Player1) just moved, so next turn is Player2
+                // GameBoardPanel already handles turn switching locally
+                if (server != null) {
+                    server.send("SYNC Player2 " + GameDataManager.boardToStringForNetwork(board));
+                }
                 String winner = board.checkWinner();
                 if (winner != null) handleVictory(winner);
             }
@@ -243,10 +247,20 @@ public class LanHostPanel extends JPanel {
                                     GameDataManager.recordMoveAndUpdateState(gameId, clientPlayerId, moveCounter.getAndIncrement(),
                                             fromRow + "_" + fromCol, toRow + "_" + toCol, boardPanel.getBoard());
                                 }
-                                String json = GameDataManager.boardToStringForNetwork(boardPanel.getBoard());
-                                server.send("SYNC " + json);
-                                boardPanel.applyExternalSync(boardPanel.getBoard(), "Player1");
-                                String winner = boardPanel.getBoard().checkWinner();
+                                // Update the host's display
+                                Board currentBoard = boardPanel.getBoard();
+                                String json = GameDataManager.boardToStringForNetwork(currentBoard);
+                                
+                                // Send updated board back to client with turn information
+                                // Client (Player2) just moved, so next turn is Player1
+                                server.send("SYNC Player1 " + json);
+                                
+                                // Update host's local display - Player2 just moved, so it's Player1's turn now
+                                SwingUtilities.invokeLater(() -> {
+                                    boardPanel.applyExternalSync(currentBoard, "Player1");
+                                });
+                                
+                                String winner = currentBoard.checkWinner();
                                 if (winner != null) handleVictory(winner);
                             } catch (Exception ex) {
                                 statusLabel.setText("Status: Invalid client move");
