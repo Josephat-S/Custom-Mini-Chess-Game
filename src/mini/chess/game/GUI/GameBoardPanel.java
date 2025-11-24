@@ -501,7 +501,17 @@ public class GameBoardPanel extends JPanel {
                     duration,
                     winnerPieces,
                     null,  // Play again - not implemented here
-                    () -> window.dispose()  // Return to menu
+                    () -> {
+                        // Return to main menu
+                        Container parent = this.getParent();
+                        if (parent instanceof JPanel) {
+                            Container grandParent = parent.getParent();
+                            if (grandParent instanceof JPanel) {
+                                // Navigate to MAIN_MENU card
+                                ((CardLayout)((JPanel)grandParent).getLayout()).show((Container)grandParent, "MAIN_MENU");
+                            }
+                        }
+                    }
                 );
                 dialog.setVisible(true);
             }
