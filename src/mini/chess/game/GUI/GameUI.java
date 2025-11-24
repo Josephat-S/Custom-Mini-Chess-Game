@@ -80,11 +80,9 @@ public class GameUI extends JFrame {
             }
 
             if (isLogin) {
-                int id = AuthManager.login(u, p);
-                if (id == -2) {
-                    JOptionPane.showMessageDialog(this, "Account is locked. Contact admin.", "Access Denied", JOptionPane.ERROR_MESSAGE);
-                } else if (id != -1) {
-                    userId = id; // set before logging
+                AuthManager.AuthResult result = AuthManager.loginWithDetails(u, p);
+                if (result.isSuccess()) {
+                    userId = result.userId;
                     LogManager.logAction(userId, "LOGIN");
                     
                     if (AuthManager.isAdmin(userId)) {
@@ -93,16 +91,22 @@ public class GameUI extends JFrame {
                         cardLayout.show(mainPanel, "MENU");
                     }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Invalid credentials", "Error", JOptionPane.ERROR_MESSAGE);
+                    // Display specific error message based on error code
+                    int messageType = "ACCOUNT_LOCKED".equals(result.errorCode) ? 
+                        JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE;
+                    JOptionPane.showMessageDialog(this, result.userMessage, 
+                        "Login Failed", messageType);
                 }
             } else {
-                int id = AuthManager.register(u, p);
-                if (id != -1) {
-                    userId = id; // set before logging
+                AuthManager.AuthResult result = AuthManager.registerWithDetails(u, p);
+                if (result.isSuccess()) {
+                    userId = result.userId;
                     LogManager.logAction(userId, "REGISTER");
                     cardLayout.show(mainPanel, "MENU");
                 } else {
-                    JOptionPane.showMessageDialog(this, "Registration failed", "Error", JOptionPane.ERROR_MESSAGE);
+                    // Display specific error message
+                    JOptionPane.showMessageDialog(this, result.userMessage, 
+                        "Registration Failed", JOptionPane.ERROR_MESSAGE);
                 }
             }
         });

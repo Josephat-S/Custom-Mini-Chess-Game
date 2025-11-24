@@ -5,6 +5,7 @@ import mini.chess.game.Models.Board;
 import mini.chess.game.Models.Move;
 import mini.chess.game.Models.Piece;
 import mini.chess.game.utils.GameDataManager;
+import mini.chess.game.db.AuthManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -30,6 +31,13 @@ public class GameBoardPanel extends JPanel {
     private final int playerId;
     private int moveCounter = 0;
     private boolean gameOver = false;
+    
+    // Game statistics
+    private final long gameStartTime;
+    private String player1Name = "Player 1";
+    private String player2Name = "Player 2";
+    private final int player1UserId;
+    private final int player2UserId;
 
     private final boolean networkMode;
     private final String localPlayer;
@@ -39,14 +47,18 @@ public class GameBoardPanel extends JPanel {
     private AIPlayer aiPlayer;
 
     public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI) {
-        this(gameId, playerId, initialBoard, null, null, isAI);
+        this(gameId, playerId, initialBoard, null, null, isAI, -1, -1);
     }
 
     public GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener) {
-        this(gameId, playerId, initialBoard, localPlayer, listener, false);
+        this(gameId, playerId, initialBoard, localPlayer, listener, false, -1, -1);
+    }
+    
+    public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI, int player1UserId, int player2UserId) {
+        this(gameId, playerId, initialBoard, null, null, isAI, player1UserId, player2UserId);
     }
 
-    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode) {
+    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode, int p1UserId, int p2UserId) {
         this.gameId = gameId;
         this.playerId = playerId;
         this.board = initialBoard != null ? initialBoard : new Board();
@@ -54,6 +66,21 @@ public class GameBoardPanel extends JPanel {
         this.moveListener = listener;
         this.networkMode = (localPlayer != null && listener != null);
         this.aiMode = aiMode;
+        this.gameStartTime = System.currentTimeMillis();
+        this.player1UserId = p1UserId;
+        this.player2UserId = p2UserId;
+        
+        // Get player names from database if available
+        if (p1UserId != -1) {
+            String name = AuthManager.getUsernameById(p1UserId);
+            if (name != null) player1Name = name;
+        }
+        if (p2UserId != -1) {
+            String name = AuthManager.getUsernameById(p2UserId);
+            if (name != null) player2Name = name;
+        } else if (aiMode) {
+            player2Name = "AI";
+        }
 
         setLayout(new BorderLayout(15, 15));
         setBackground(UIConstants.BACKGROUND_COLOR);
@@ -417,6 +444,8 @@ public class GameBoardPanel extends JPanel {
 
     public void setGameOver(String winner) {
         gameOver = true;
+        
+        // Update status label
         if (winner != null) {
             statusLabel.setText("GAME OVER: " + winner);
             statusLabel.setForeground(UIConstants.SUCCESS_COLOR);
@@ -424,9 +453,62 @@ public class GameBoardPanel extends JPanel {
             statusLabel.setText("GAME OVER");
             statusLabel.setForeground(UIConstants.SUCCESS_COLOR);
         }
+        
+        // Determine winner name
+        String winnerName;
+        if (winner != null && winner.contains("Player1")) {
+            winnerName = player1Name;
+        } else if (winner != null && winner.contains("Player2")) {
+            winnerName = player2Name;
+        } else {
+            winnerName = "Draw";
+        }
+        
+        // Calculate game duration
+        long durationMs = System.currentTimeMillis() - gameStartTime;
+        int seconds = (int) (durationMs / 1000);
+        int minutes = seconds / 60;
+        seconds = seconds % 60;
+        String duration = String.format("%d:%02d", minutes, seconds);
+        
+        // Get piece counts
+        int p1Leaders = 0, p1Soldiers = 0, p2Leaders = 0, p2Soldiers = 0;
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                Piece piece = board.getPieceAt(i, j);
+                if (piece != null) {
+                    boolean isLeader = piece.getClass().getSimpleName().equals("Leader");
+                    if (piece.getPlayer().equals("Player1")) {
+                        if (isLeader) p1Leaders++; else p1Soldiers++;
+                    } else {
+                        if (isLeader) p2Leaders++; else p2Soldiers++;
+                    }
+                }
+            }
+        }
+        String winnerPieces = winner != null && winner.contains("Player1") ?
+            "♔×" + p1Leaders + " ♙×" + p1Soldiers :
+            "♔×" + p2Leaders + " ♙×" + p2Soldiers;
+        
+        // Show winner dialog
+        SwingUtilities.invokeLater(() -> {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window instanceof JFrame) {
+                WinnerDialog dialog = new WinnerDialog(
+                    (JFrame) window,
+                    winnerName,
+                    moveCounter,
+                    duration,
+                    winnerPieces,
+                    null,  // Play again - not implemented here
+                    () -> window.dispose()  // Return to menu
+                );
+                dialog.setVisible(true);
+            }
+        });
     }
 
     public Board getBoard() {
         return board;
-}
+    }
 }
