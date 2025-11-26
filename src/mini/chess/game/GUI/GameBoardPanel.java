@@ -262,7 +262,10 @@ public class GameBoardPanel extends JPanel {
                 } else {
                     String fromCell = "(" + selectedRow + "," + selectedCol + ")";
                     String toCell = "(" + row + "," + col + ")";
-                    GameDataManager.recordMoveAndUpdateState(gameId, playerId, moveCounter, fromCell, toCell, board);
+                    // Run DB update in background to avoid freezing UI
+                    new Thread(() -> {
+                        GameDataManager.recordMoveAndUpdateState(gameId, playerId, moveCounter, fromCell, toCell, board);
+                    }).start();
                 }
 
                 updateBoardDisplay();
@@ -319,7 +322,11 @@ public class GameBoardPanel extends JPanel {
 
                         String fromCell = "(" + aiMove.fromRow + "," + aiMove.fromCol + ")";
                         String toCell = "(" + aiMove.toRow + "," + aiMove.toCol + ")";
-                        GameDataManager.recordMoveAndUpdateState(gameId, playerId, moveCounter, fromCell, toCell, board);
+                        
+                        // Run DB update in background
+                        new Thread(() -> {
+                            GameDataManager.recordMoveAndUpdateState(gameId, playerId, moveCounter, fromCell, toCell, board);
+                        }).start();
 
                         updateBoardDisplay();
                         updatePieceCount();
@@ -456,26 +463,29 @@ public class GameBoardPanel extends JPanel {
 
         // Handle DB updates for local games (not network mode)
         if (!networkMode && winner != null) {
-            int winnerId = -1;
-            int loserId = -1;
+            // Run DB updates in background
+            new Thread(() -> {
+                int winnerId = -1;
+                int loserId = -1;
 
-            if (winner.contains("Player1")) {
-                winnerId = player1UserId;
-                loserId = player2UserId;
-            } else if (winner.contains("Player2")) {
-                winnerId = player2UserId;
-                loserId = player1UserId;
-            }
+                if (winner.contains("Player1")) {
+                    winnerId = player1UserId;
+                    loserId = player2UserId;
+                } else if (winner.contains("Player2")) {
+                    winnerId = player2UserId;
+                    loserId = player1UserId;
+                }
 
-            if (winnerId != -1) {
-                GameDataManager.updatePlayerScore(winnerId, 5);
-                GameDataManager.markGameAsComplete(gameId, winnerId);
-                GameDataManager.updatePlayerStatus(winnerId, "WIN");
-            }
-            
-            if (loserId != -1) {
-                GameDataManager.updatePlayerStatus(loserId, "LOSS");
-            }
+                if (winnerId != -1) {
+                    GameDataManager.updatePlayerScore(winnerId, 5);
+                    GameDataManager.markGameAsComplete(gameId, winnerId);
+                    GameDataManager.updatePlayerStatus(winnerId, "WIN");
+                }
+                
+                if (loserId != -1) {
+                    GameDataManager.updatePlayerStatus(loserId, "LOSS");
+                }
+            }).start();
         }
         
         // Determine winner name

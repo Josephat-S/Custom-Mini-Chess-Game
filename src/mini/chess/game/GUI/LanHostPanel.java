@@ -163,10 +163,15 @@ public class LanHostPanel extends JPanel {
             @Override
             public void onLocalMove(int fromRow, int fromCol, int toRow, int toCol, Board board) {
                 if (gameOver.get()) return;
-                synchronized (boardLock) {
-                    GameDataManager.recordMoveAndUpdateState(gameId, hostPlayerId, moveCounter.getAndIncrement(),
-                            fromRow + "_" + fromCol, toRow + "_" + toCol, board);
-                }
+                
+                // Run DB update in background
+                new Thread(() -> {
+                    synchronized (boardLock) {
+                        GameDataManager.recordMoveAndUpdateState(gameId, hostPlayerId, moveCounter.getAndIncrement(),
+                                fromRow + "_" + fromCol, toRow + "_" + toCol, board);
+                    }
+                }).start();
+
                 // Send the updated board to the client with turn information
                 // Host (Player1) just moved, so next turn is Player2
                 // GameBoardPanel already handles turn switching locally
@@ -244,6 +249,12 @@ public class LanHostPanel extends JPanel {
                                 int toCol = Integer.parseInt(parts[3]);
                                 synchronized (boardLock) {
                                     boardPanel.getBoard().movePiece(fromRow, fromCol, toRow, toCol);
+                                    
+                                    // Run DB update in background (already on listener thread, but good practice to detach if heavy)
+                                    // Actually listener thread handles incoming messages, if we block it we delay processing other messages.
+                                    // But here it's fine as we process one message at a time.
+                                    // However, for consistency let's keep it here or spawn if needed. 
+                                    // Since listener thread is background, it won't freeze UI.
                                     GameDataManager.recordMoveAndUpdateState(gameId, clientPlayerId, moveCounter.getAndIncrement(),
                                             fromRow + "_" + fromCol, toRow + "_" + toCol, boardPanel.getBoard());
                                 }
@@ -298,24 +309,27 @@ public class LanHostPanel extends JPanel {
                 (clientPlayerId != null ? clientPlayerId : -1);
 
         if (winnerPlayerId != -1) {
-            boolean scoreUpdated = GameDataManager.updatePlayerScore(winnerPlayerId, 5);
-            boolean gameMarked = GameDataManager.markGameAsComplete(gameId, winnerPlayerId);
+            // Run DB updates in background
+            new Thread(() -> {
+                boolean scoreUpdated = GameDataManager.updatePlayerScore(winnerPlayerId, 5);
+                boolean gameMarked = GameDataManager.markGameAsComplete(gameId, winnerPlayerId);
 
-            // Update player_status for winner
-            GameDataManager.updatePlayerStatus(winnerPlayerId, "WIN");
+                // Update player_status for winner
+                GameDataManager.updatePlayerStatus(winnerPlayerId, "WIN");
 
-            // Update player_status for loser
-            int loserId = (winnerPlayerId == hostPlayerId) ? 
-                          (clientPlayerId != null ? clientPlayerId : -1) : 
-                          hostPlayerId;
-            
-            if (loserId != -1) {
-                GameDataManager.updatePlayerStatus(loserId, "LOSS");
-            }
+                // Update player_status for loser
+                int loserId = (winnerPlayerId == hostPlayerId) ? 
+                              (clientPlayerId != null ? clientPlayerId : -1) : 
+                              hostPlayerId;
+                
+                if (loserId != -1) {
+                    GameDataManager.updatePlayerStatus(loserId, "LOSS");
+                }
 
-            if (!scoreUpdated || !gameMarked) {
-                statusLabel.setText("Status: " + winner + " wins (DB update failed)");
-            }
+                if (!scoreUpdated || !gameMarked) {
+                    SwingUtilities.invokeLater(() -> statusLabel.setText("Status: " + winner + " wins (DB update failed)"));
+                }
+            }).start();
         }
 
         if (server != null) server.send("SYNC " + GameDataManager.boardToStringForNetwork(boardPanel.getBoard()));

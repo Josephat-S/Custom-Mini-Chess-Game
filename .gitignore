@@ -31,3 +31,15 @@ bin/
 
 ### Java ###
 *.class
+*.jar
+
+### Build Artifacts ###
+input/
+output/
+bin/
+
+### Configuration & Data ###
+db.properties
+backup_config.properties
+backups/
+*.log
