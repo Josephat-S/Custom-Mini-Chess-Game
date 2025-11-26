@@ -453,6 +453,30 @@ public class GameBoardPanel extends JPanel {
             statusLabel.setText("GAME OVER");
             statusLabel.setForeground(UIConstants.SUCCESS_COLOR);
         }
+
+        // Handle DB updates for local games (not network mode)
+        if (!networkMode && winner != null) {
+            int winnerId = -1;
+            int loserId = -1;
+
+            if (winner.contains("Player1")) {
+                winnerId = player1UserId;
+                loserId = player2UserId;
+            } else if (winner.contains("Player2")) {
+                winnerId = player2UserId;
+                loserId = player1UserId;
+            }
+
+            if (winnerId != -1) {
+                GameDataManager.updatePlayerScore(winnerId, 5);
+                GameDataManager.markGameAsComplete(gameId, winnerId);
+                GameDataManager.updatePlayerStatus(winnerId, "WIN");
+            }
+            
+            if (loserId != -1) {
+                GameDataManager.updatePlayerStatus(loserId, "LOSS");
+            }
+        }
         
         // Determine winner name
         String winnerName;

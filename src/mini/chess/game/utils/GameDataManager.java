@@ -426,4 +426,58 @@ public class GameDataManager {
         }
     }
 
+    public static boolean updatePlayerStatus(int playerId, String result) {
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return false;
+            conn.setAutoCommit(false);
+            try {
+                // First ensure the player exists in player_status
+                String checkQuery = "SELECT player_id FROM player_status WHERE player_id = ?";
+                boolean exists = false;
+                try (PreparedStatement ps = conn.prepareStatement(checkQuery)) {
+                    ps.setInt(1, playerId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) exists = true;
+                    }
+                }
+
+                if (!exists) {
+                    String insertQuery = "INSERT INTO player_status (player_id, wins, losses, draws) VALUES (?, 0, 0, 0)";
+                    try (PreparedStatement ps = conn.prepareStatement(insertQuery)) {
+                        ps.setInt(1, playerId);
+                        ps.executeUpdate();
+                    }
+                }
+
+                // Now update the stats
+                String updateQuery = "";
+                switch (result) {
+                    case "WIN" -> updateQuery = "UPDATE player_status SET wins = wins + 1 WHERE player_id = ?";
+                    case "LOSS" -> updateQuery = "UPDATE player_status SET losses = losses + 1 WHERE player_id = ?";
+                    case "DRAW" -> updateQuery = "UPDATE player_status SET draws = draws + 1 WHERE player_id = ?";
+                    default -> {
+                        conn.rollback();
+                        return false;
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(updateQuery)) {
+                    ps.setInt(1, playerId);
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                System.err.println("updatePlayerStatus failed: " + e.getMessage());
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.err.println("DB connect error in updatePlayerStatus: " + e.getMessage());
+            return false;
+        }
+    }
 }

@@ -301,6 +301,18 @@ public class LanHostPanel extends JPanel {
             boolean scoreUpdated = GameDataManager.updatePlayerScore(winnerPlayerId, 5);
             boolean gameMarked = GameDataManager.markGameAsComplete(gameId, winnerPlayerId);
 
+            // Update player_status for winner
+            GameDataManager.updatePlayerStatus(winnerPlayerId, "WIN");
+
+            // Update player_status for loser
+            int loserId = (winnerPlayerId == hostPlayerId) ? 
+                          (clientPlayerId != null ? clientPlayerId : -1) : 
+                          hostPlayerId;
+            
+            if (loserId != -1) {
+                GameDataManager.updatePlayerStatus(loserId, "LOSS");
+            }
+
             if (!scoreUpdated || !gameMarked) {
                 statusLabel.setText("Status: " + winner + " wins (DB update failed)");
             }
