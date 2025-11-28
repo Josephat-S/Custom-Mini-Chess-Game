@@ -290,6 +290,16 @@ Run as Administrator to enable automatic firewall rule creation:
 java -cp "bin;path/to/mysql-connector-j-8.x.x.jar" mini.chess.game.GUI.GameUI
 ```
 
+### Running Unit Tests
+To verify the game logic, you can run the included unit test suite:
+```bash
+# Compile tests
+javac -d bin -sourcepath src src/mini/chess/game/tests/TestRunner.java
+
+# Run tests
+java -cp bin mini.chess.game.tests.TestRunner
+```
+
 ---
 
 ## 📖 How to Use
