@@ -24,6 +24,15 @@ public class GameDataManager {
     public static int getOrCreatePlayerId(int userId) {
         try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) return -1;
+            return getOrCreatePlayerId(conn, userId);
+        } catch (SQLException e) {
+            System.err.println("getOrCreatePlayerId wrapper: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    public static int getOrCreatePlayerId(Connection conn, int userId) {
+        try {
             String q = "SELECT player_id FROM players WHERE user_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(q)) {
                 ps.setInt(1, userId);
@@ -51,7 +60,8 @@ public class GameDataManager {
             if (conn == null) return new GameCreateResult(-1, -1);
             conn.setAutoCommit(false);
             try {
-                int playerId = getOrCreatePlayerId(userId);
+                // Use the existing connection to avoid closing it
+                int playerId = getOrCreatePlayerId(conn, userId);
                 if (playerId == -1) {
                     conn.rollback();
                     return new GameCreateResult(-1, -1);
