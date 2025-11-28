@@ -221,6 +221,7 @@ ORDER BY p.score DESC;
 
 - **Java Development Kit (JDK)**: 17 or higher
 - **MySQL Server**: 8.0 or higher
+- **MySQL Connector/J**: JDBC driver for MySQL (required in classpath)
 - **Operating System**: 
   - Windows (full feature support including firewall management)
   - Linux/macOS (limited firewall features)
@@ -236,117 +237,42 @@ ORDER BY p.score DESC;
    USE mini_chess;
    ```
 
-2. **Create tables** (execute in order):
-   ```sql
-   -- Users table
-   CREATE TABLE users (
-       user_id INT AUTO_INCREMENT PRIMARY KEY,
-       username VARCHAR(50) UNIQUE NOT NULL,
-       password_hash VARCHAR(64) NOT NULL,
-       is_locked TINYINT DEFAULT 0
-   );
-
-   -- Admins table
-   CREATE TABLE admins (
-       admin_id INT AUTO_INCREMENT PRIMARY KEY,
-       user_id INT,
-       FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-   );
-
-   -- Players table
-   CREATE TABLE players (
-       player_id INT AUTO_INCREMENT PRIMARY KEY,
-       user_id INT,
-       score INT DEFAULT 0,
-       FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-   );
-
-   -- Games table
-   CREATE TABLE games (
-       game_id INT AUTO_INCREMENT PRIMARY KEY,
-       type ENUM('local', 'lan', 'ai') NOT NULL,
-       status ENUM('active', 'completed', 'abandoned') DEFAULT 'active',
-       start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       end_time TIMESTAMP NULL
-   );
-
-   -- Players-games relationship
-   CREATE TABLE players_games (
-       game_id INT,
-       player_one_id INT,
-       player_two_id INT NULL,
-       winner_id INT NULL,
-       FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
-       FOREIGN KEY (player_one_id) REFERENCES players(player_id),
-       FOREIGN KEY (player_two_id) REFERENCES players(player_id),
-       FOREIGN KEY (winner_id) REFERENCES players(player_id)
-   );
-
-   -- Moves table
-   CREATE TABLE moves (
-       move_id INT AUTO_INCREMENT PRIMARY KEY,
-       game_id INT,
-       player_id INT,
-       move_number INT,
-       from_cell VARCHAR(10),
-       to_cell VARCHAR(10),
-       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
-       FOREIGN KEY (player_id) REFERENCES players(player_id)
-   );
-
-   -- Game state table
-   CREATE TABLE gamestate (
-       state_id INT AUTO_INCREMENT PRIMARY KEY,
-       game_id INT,
-       player_turn VARCHAR(20),
-       board_data TEXT,
-       last_move VARCHAR(20),
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-       FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
-   );
-
-   -- User logs table
-   CREATE TABLE user_logs (
-       log_id INT AUTO_INCREMENT PRIMARY KEY,
-       user_id INT,
-       action VARCHAR(50),
-       log_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-   );
+2. **Execute the SQL Script**:
+   Run the `resources/mini_chess.sql` script to create all tables and views.
+   ```bash
+   mysql -u root -p mini_chess < resources/mini_chess.sql
    ```
+   *(Or copy-paste the SQL commands from the schema section above if the file is missing)*
 
-3. **Create the leaderboards view**:
-   ```sql
-   CREATE OR REPLACE VIEW leaderboards AS
-   SELECT 
-       p.player_id,
-       u.username,
-       p.score,
-       ROW_NUMBER() OVER (ORDER BY p.score DESC, p.player_id ASC) AS rank_no
-   FROM players p
-   JOIN users u ON p.user_id = u.user_id
-   WHERE p.score > 0
-   ORDER BY p.score DESC;
-   ```
-
-4. **Update database connection** in `DBConnection.java`:
-   ```java
-   private static final String URL = "jdbc:mysql://localhost:3306/mini_chess";
-   private static final String USER = "your_mysql_username";
-   private static final String PASSWORD = "your_mysql_password";
+3. **Configure Database Connection**:
+   Create or edit the `db.properties` file in the project root directory:
+   ```properties
+   # Database Configuration
+   db.url=jdbc:mysql://localhost:3306/mini_chess?serverTimezone=UTC&useSSL=false
+   db.user=your_mysql_username
+   db.password=your_mysql_password
    ```
 
 ### Running the Application
 
 #### GUI Mode (Recommended)
-```bash
-# Compile the project
-javac -d bin -sourcepath src src/mini/chess/game/GUI/GameUI.java
+1. **Compile the project**:
+   ```bash
+   javac -d bin -sourcepath src src/mini/chess/game/GUI/GameUI.java
+   ```
 
-# Run the application
-java -cp bin mini.chess.game.GUI.GameUI
-```
+2. **Run the application**:
+   *Note: Ensure `mysql-connector-j-8.x.x.jar` is in your classpath. If you don't have it, download it from MySQL website.*
+   
+   **Windows (Command Prompt)**:
+   ```bash
+   java -cp "bin;path/to/mysql-connector-j-8.x.x.jar" mini.chess.game.GUI.GameUI
+   ```
+   
+   **Linux/Mac**:
+   ```bash
+   java -cp "bin:path/to/mysql-connector-j-8.x.x.jar" mini.chess.game.GUI.GameUI
+   ```
 
 #### Console Mode
 ```bash
@@ -354,14 +280,14 @@ java -cp bin mini.chess.game.GUI.GameUI
 javac -d bin -sourcepath src src/mini/chess/game/app/Main.java
 
 # Run
-java -cp bin mini.chess.game.app.Main
+java -cp "bin;path/to/mysql-connector-j-8.x.x.jar" mini.chess.game.app.Main
 ```
 
 #### For LAN Hosting with Firewall Management (Windows)
 Run as Administrator to enable automatic firewall rule creation:
 ```bash
 # Right-click Command Prompt → Run as Administrator
-java -cp bin mini.chess.game.GUI.GameUI
+java -cp "bin;path/to/mysql-connector-j-8.x.x.jar" mini.chess.game.GUI.GameUI
 ```
 
 ---
@@ -460,6 +386,14 @@ Capture the opponent's **Leader** piece to win the game.
 ---
 
 ## 🔧 Configuration Files
+
+### `db.properties`
+Database connection settings. Must be placed in the application root directory.
+```properties
+db.url=jdbc:mysql://localhost:3306/mini_chess?serverTimezone=UTC&useSSL=false
+db.user=root
+db.password=
+```
 
 ### `backup_config.properties`
 Stores cloud backup folder path:
