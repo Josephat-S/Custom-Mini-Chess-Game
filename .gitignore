@@ -39,7 +39,6 @@ output/
 bin/
 
 ### Configuration & Data ###
-db.properties
 backup_config.properties
 backups/
 *.log
