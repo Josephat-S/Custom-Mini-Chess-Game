@@ -72,11 +72,27 @@ public class Board implements Serializable {
             System.out.println("No piece at that position!");
             return false;
         }
+
+        // 1. Prevent moving to the same square
+        if (fromRow == toRow && fromCol == toCol) {
+            System.out.println("Cannot move to the same square!");
+            return false;
+        }
+
+        // 2. Validate movement rules (geometry)
         if (!piece.canMove(toRow, toCol)) {
             System.out.println("Invalid move for " + piece.name);
             return false;
         }
+
         Piece target = board[toRow][toCol];
+
+        // 3. Prevent Friendly Fire
+        if (target != null && target.player.equals(piece.player)) {
+            System.out.println("Cannot capture your own piece!");
+            return false;
+        }
+
         if (target != null) System.out.println(piece.player + " captured " + target.player + "'s " + target.name);
 
         board[toRow][toCol] = piece;

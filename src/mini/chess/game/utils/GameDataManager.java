@@ -18,7 +18,7 @@ public class GameDataManager {
         public GameCreateResult(int gameId, int playerId) {
             this.gameId = gameId;
             this.playerId = playerId;
-        }
+        } 
     }
 
     public static int getOrCreatePlayerId(int userId) {
@@ -375,7 +375,7 @@ public class GameDataManager {
                     }
                 }
                 conn.commit();
-                System.out.println("✓ Updated player " + playerId + " score by +" + scoreIncrement);
+                System.out.println("? Updated player " + playerId + " score by +" + scoreIncrement);
                 return true;
             } catch (SQLException e) {
                 conn.rollback();
@@ -479,5 +479,84 @@ public class GameDataManager {
             System.err.println("DB connect error in updatePlayerStatus: " + e.getMessage());
             return false;
         }
+    }
+    
+    /**
+     * Game state class for LAN polling
+     */
+    public static class GameState {
+        public final int stateId;
+        public final int playerTurn;
+        public final String boardData;
+        public final String lastMove;
+        public final Timestamp savedAt;
+        
+        public GameState(int stateId, int playerTurn, String boardData, String lastMove, Timestamp savedAt) {
+            this.stateId = stateId;
+            this.playerTurn = playerTurn;
+            this.boardData = boardData;
+            this.lastMove = lastMove;
+            this.savedAt = savedAt;
+        }
+    }
+    
+    /**
+     * Get the latest game state for LAN polling
+     */
+    public static GameState getLatestGameState(int gameId) {
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return null;
+            
+            String query = "SELECT id, player_turn, board_data, last_move, saved_at FROM gamestate WHERE game_id = ? ORDER BY id DESC LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setInt(1, gameId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return new GameState(
+                            rs.getInt("id"),
+                            rs.getInt("player_turn"),
+                            rs.getString("board_data"),
+                            rs.getString("last_move"),
+                            rs.getTimestamp("saved_at")
+                        );
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("getLatestGameState failed: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Get game states since a specific state ID (for polling new moves)
+     */
+    public static java.util.List<GameState> getGameStatesSince(int gameId, int sinceStateId) {
+        java.util.List<GameState> states = new java.util.ArrayList<>();
+        
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) return states;
+            
+            String query = "SELECT id, player_turn, board_data, last_move, saved_at FROM gamestate WHERE game_id = ? AND id > ? ORDER BY id ASC";
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setInt(1, gameId);
+                ps.setInt(2, sinceStateId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        states.add(new GameState(
+                            rs.getInt("id"),
+                            rs.getInt("player_turn"),
+                            rs.getString("board_data"),
+                            rs.getString("last_move"),
+                            rs.getTimestamp("saved_at")
+                        ));
+                    }
+                }
+            
+            }
+        } catch (SQLException e) {
+            System.err.println("getGameStatesSince failed: " + e.getMessage());
+        }
+        return states;
     }
 }

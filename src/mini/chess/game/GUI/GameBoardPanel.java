@@ -45,20 +45,31 @@ public class GameBoardPanel extends JPanel {
 
     private final boolean aiMode;
     private AIPlayer aiPlayer;
+    
+    // LAN polling mode fields
+    private final boolean lanPollingMode;
+    private final int opponentPlayerId;
+    private Thread lanPollThread;
+    private int lastGameStateId = 0;
 
     public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI) {
-        this(gameId, playerId, initialBoard, null, null, isAI, -1, -1);
+        this(gameId, playerId, initialBoard, null, null, isAI, -1, -1, false, -1);
     }
 
     public GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener) {
-        this(gameId, playerId, initialBoard, localPlayer, listener, false, -1, -1);
+        this(gameId, playerId, initialBoard, localPlayer, listener, false, -1, -1, false, -1);
     }
     
     public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI, int player1UserId, int player2UserId) {
-        this(gameId, playerId, initialBoard, null, null, isAI, player1UserId, player2UserId);
+        this(gameId, playerId, initialBoard, null, null, isAI, player1UserId, player2UserId, false, -1);
+    }
+    
+    // LAN polling mode constructor
+    public GameBoardPanel(int gameId, int myPlayerId, int opponentPlayerId, Board initialBoard, boolean isPlayerOne) {
+        this(gameId, myPlayerId, initialBoard, null, null, false, -1, -1, true, opponentPlayerId);
     }
 
-    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode, int p1UserId, int p2UserId) {
+    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode, int p1UserId, int p2UserId, boolean lanPollingMode, int opponentPlayerId) {
         this.gameId = gameId;
         this.playerId = playerId;
         this.board = initialBoard != null ? initialBoard : new Board();
@@ -66,6 +77,8 @@ public class GameBoardPanel extends JPanel {
         this.moveListener = listener;
         this.networkMode = (localPlayer != null && listener != null);
         this.aiMode = aiMode;
+        this.lanPollingMode = lanPollingMode;
+        this.opponentPlayerId = opponentPlayerId;
         this.gameStartTime = System.currentTimeMillis();
         this.player1UserId = p1UserId;
         this.player2UserId = p2UserId;
@@ -213,6 +226,11 @@ public class GameBoardPanel extends JPanel {
             this.aiPlayer = new AIPlayer();
             this.aiPlayer.setSearchDepth(2);
         }
+        
+        // Start LAN polling thread if in LAN mode
+        if (this.lanPollingMode) {
+            startLanPolling();
+        }
 
         updateBoardDisplay();
         updatePieceCount();
@@ -253,8 +271,15 @@ public class GameBoardPanel extends JPanel {
             try {
                 Move move = new Move(selectedRow, selectedCol, row, col);
 
-                // Directly attempt the move (allows moving the Leader into danger).
-                board.applyAndAnnounceMove(move, currentPlayer, "GUI");
+                // Use movePiece to enforce rules
+                if (!board.movePiece(selectedRow, selectedCol, row, col)) {
+                    statusLabel.setText("Invalid move!");
+                    statusLabel.setForeground(UIConstants.DANGER_COLOR);
+                    selectedRow = -1;
+                    selectedCol = -1;
+                    clearHighlight();
+                    return;
+                }
                 moveCounter++;
 
                 if (networkMode) {
@@ -461,8 +486,8 @@ public class GameBoardPanel extends JPanel {
             statusLabel.setForeground(UIConstants.SUCCESS_COLOR);
         }
 
-        // Handle DB updates for local games (not network mode)
-        if (!networkMode && winner != null) {
+        // Handle DB updates for local and LAN games (not old network mode)
+        if ((!networkMode || lanPollingMode) && winner != null) {
             // Run DB updates in background
             new Thread(() -> {
                 int winnerId = -1;
@@ -477,13 +502,19 @@ public class GameBoardPanel extends JPanel {
                 }
 
                 if (winnerId != -1) {
-                    GameDataManager.updatePlayerScore(winnerId, 5);
-                    GameDataManager.markGameAsComplete(gameId, winnerId);
-                    GameDataManager.updatePlayerStatus(winnerId, "WIN");
+                    int winnerPlayerId = GameDataManager.getOrCreatePlayerId(winnerId);
+                    if (winnerPlayerId != -1) {
+                        GameDataManager.updatePlayerScore(winnerPlayerId, 5);
+                        GameDataManager.updatePlayerStatus(winnerPlayerId, "WIN");
+                        GameDataManager.markGameAsComplete(gameId, winnerPlayerId);
+                    }
                 }
                 
                 if (loserId != -1) {
-                    GameDataManager.updatePlayerStatus(loserId, "LOSS");
+                    int loserPlayerId = GameDataManager.getOrCreatePlayerId(loserId);
+                    if (loserPlayerId != -1) {
+                        GameDataManager.updatePlayerStatus(loserPlayerId, "LOSS");
+                    }
                 }
             }).start();
         }
@@ -554,5 +585,62 @@ public class GameBoardPanel extends JPanel {
 
     public Board getBoard() {
         return board;
+    }
+    
+    private void startLanPolling() {
+        // Get initial state
+        GameDataManager.GameState initialState = GameDataManager.getLatestGameState(gameId);
+        if (initialState != null) {
+            lastGameStateId = initialState.stateId;
+        }
+        
+        lanPollThread = new Thread(() -> {
+            while (!gameOver && !Thread.currentThread().isInterrupted()) {
+                try {
+                    // Poll for new game states
+                    java.util.List<GameDataManager.GameState> newStates = 
+                        GameDataManager.getGameStatesSince(gameId, lastGameStateId);
+                    
+                    for (GameDataManager.GameState state : newStates) {
+                        // Check if this state is from opponent
+                        // In LAN mode, we track states by ID, not by player
+                        if (state.stateId > lastGameStateId) {
+                            lastGameStateId = state.stateId;
+                            
+                            // Update board on UI thread
+                            SwingUtilities.invokeLater(() -> {
+                                Board newBoard = GameDataManager.boardFromStringForNetwork(state.boardData);
+                                if (newBoard != null) {
+                                    board = newBoard;
+                                    currentPlayer = state.playerTurn == 1 ? "Player1" : "Player2";
+                                    updateBoardDisplay();
+                                    updatePieceCount();
+                                    turnLabel.setText("Turn: " + (currentPlayer.equals("Player1") ? "Player 1" : "Player 2"));
+                                    statusLabel.setText("Opponent moved");
+                                    statusLabel.setForeground(UIConstants.TEXT_COLOR);
+                                    
+                                    // Check for winner
+                                    String winner = board.checkWinner();
+                                    if (winner != null) {
+                                        setGameOver(winner);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    
+                    Thread.sleep(500); // Poll every 500ms
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    System.err.println("LAN polling error: " + e.getMessage());
+                }
+            }
+        }, "LAN-Poll-Thread");
+        
+        lanPollThread.setDaemon(true);
+        lanPollThread.start();
     }
 }

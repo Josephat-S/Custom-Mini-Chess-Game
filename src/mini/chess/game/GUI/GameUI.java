@@ -140,15 +140,13 @@ public class GameUI extends JFrame {
         gbc.gridy++;
 
         JButton localGameBtn = UIConstants.createStyledButton("🎮 New Local Game");
-        JButton hostGameBtn = UIConstants.createStyledButton("🌐 New LAN Game (Host)");
-        JButton joinGameBtn = UIConstants.createStyledButton("📡 Join LAN Game");
+        JButton lanGameBtn = UIConstants.createStyledButton("🌐 Play on LAN");
         JButton loadGameBtn = UIConstants.createStyledButton("💾 Load Saved Game");
         JButton leaderboardBtn = UIConstants.createStyledButton("🏆 Leaderboard");
         JButton exitBtn = UIConstants.createStyledButton("🚪 Exit");
 
         localGameBtn.addActionListener(e -> startNewLocalGame());
-        hostGameBtn.addActionListener(e -> startHostLanGame());
-        joinGameBtn.addActionListener(e -> startJoinLanGame());
+        lanGameBtn.addActionListener(e -> startLanGame());
         loadGameBtn.addActionListener(e -> loadSavedGame());
         leaderboardBtn.addActionListener(e -> showLeaderboard());
         exitBtn.addActionListener(e -> {
@@ -162,11 +160,10 @@ public class GameUI extends JFrame {
             }
         });
 
-        JPanel buttonPanel = new JPanel(new GridLayout(6, 1, 0, 15));
+        JPanel buttonPanel = new JPanel(new GridLayout(5, 1, 0, 15));
         buttonPanel.setBackground(UIConstants.BACKGROUND_COLOR);
         buttonPanel.add(localGameBtn);
-        buttonPanel.add(hostGameBtn);
-        buttonPanel.add(joinGameBtn);
+        buttonPanel.add(lanGameBtn);
         buttonPanel.add(loadGameBtn);
         buttonPanel.add(leaderboardBtn);
         buttonPanel.add(exitBtn);
@@ -202,25 +199,25 @@ public class GameUI extends JFrame {
         cardLayout.show(mainPanel, card);
     }
 
-    private void startHostLanGame() {
+    private void startLanGame() {
         if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "You must be logged in to host a LAN game", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "You must be logged in to play on LAN", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        LanHostPanel hostPanel = new LanHostPanel(userId, () -> cardLayout.show(mainPanel, "MENU"));
-        String card = "HOST_" + System.currentTimeMillis();
-        mainPanel.add(hostPanel, card);
-        cardLayout.show(mainPanel, card);
-    }
-
-    private void startJoinLanGame() {
-        if (userId == -1) {
-            JOptionPane.showMessageDialog(this, "You must be logged in to join a LAN game", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        LanJoinPanel joinPanel = new LanJoinPanel(userId, () -> cardLayout.show(mainPanel, "MENU"));
-        String card = "JOIN_" + System.currentTimeMillis();
-        mainPanel.add(joinPanel, card);
+        
+        // Get username for current user
+        String myUsername = AuthManager.getUsernameById(userId);
+        if (myUsername == null) myUsername = "User" + userId;
+        
+        LanInvitePanel invitePanel = new LanInvitePanel(
+            userId, 
+            myUsername,
+            () -> {}, // onGameStart callback (unused, panel handles it)
+            () -> cardLayout.show(mainPanel, "MENU")
+        );
+        
+        String card = "LAN_INVITE_" + System.currentTimeMillis();
+        mainPanel.add(invitePanel, card);
         cardLayout.show(mainPanel, card);
     }
 

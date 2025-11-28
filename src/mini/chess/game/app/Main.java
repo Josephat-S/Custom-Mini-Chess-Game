@@ -13,8 +13,9 @@ import mini.chess.game.Models.AIPlayer;
 import mini.chess.game.Models.Board;
 import mini.chess.game.db.AuthManager;
 import mini.chess.game.utils.GameDataManager;
-import mini.chess.game.Network.Client;
-import mini.chess.game.Network.Server;
+// Removed: Socket-based LAN play has been refactored to database-based system in GUI
+// import mini.chess.game.Network.Client;
+// import mini.chess.game.Network.Server;
 
 public class Main {
     public static void main(String[] args) {
@@ -27,10 +28,10 @@ public class Main {
 
         boolean exitGame = false;
         while (!exitGame) {
-            System.out.println("\n=== MINI CHESS GAME ===");
+            System.out.println("\n=== MINI CHESS GAME (CLI) ===");
             System.out.println("1. New Local Game");
-            System.out.println("2. New LAN Game (Host)");
-            System.out.println("3. Join LAN Game");
+            System.out.println("2. [DEPRECATED] LAN Play - Use GUI version");
+            System.out.println("3. [DEPRECATED] LAN Play - Use GUI version");
             System.out.println("4. Load Saved Game");
             System.out.println("5. Exit");
             System.out.print("Choose an option: ");
@@ -44,8 +45,8 @@ public class Main {
             }
             switch (choice) {
                 case 1 -> startNewGameLocal(sc, userId);
-                case 2 -> startNewGameHost(sc, userId);
-                case 3 -> joinLanGame(sc, userId);
+                case 2 -> System.out.println("LAN play has been moved to GUI. Please use GameUI.java instead.");
+                case 3 -> System.out.println("LAN play has been moved to GUI. Please use GameUI.java instead.");
                 case 4 -> loadSavedGame(sc, userId);
                 case 5 -> exitGame = true;
                 default -> System.out.println("Invalid choice!");
@@ -129,6 +130,7 @@ public class Main {
         }
     }
 
+    /* DEPRECATED: Socket-based LAN has been moved to GUI with database synchronization
     private static void startNewGameHost(Scanner sc, int userId) {
         System.out.print("Enter port to host on (e.g. 9000): ");
         int port = sc.nextInt();
@@ -269,7 +271,9 @@ public class Main {
             System.out.println("Hosting error: " + e.getMessage());
         }
     }
+    */
 
+    /* DEPRECATED: Socket-based LAN has been moved to GUI with database synchronization
     private static void joinLanGame(Scanner sc, int userId) {
         sc.nextLine();
         System.out.print("Host address: ");
@@ -386,6 +390,7 @@ public class Main {
             System.out.println("Connection error: " + e.getMessage());
         }
     }
+    */
 
     private static void loadSavedGame(Scanner sc, int userId) {
         List<Integer> saved = GameDataManager.listSavedGamesForUser(userId);
