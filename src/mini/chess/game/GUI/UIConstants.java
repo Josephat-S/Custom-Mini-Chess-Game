@@ -36,7 +36,7 @@ public class UIConstants {
     public static JButton createStyledButton(String text) {
         JButton button = new JButton(text);
         button.setFont(BUTTON_FONT);
-        button.setBackground(PRIMARY_COLOR);
+        button.setBackground(PRIMARY_COLOR_DARKER);
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));

@@ -46,8 +46,12 @@ public class LanInvitePanel extends JPanel {
         
         // Create tabbed pane
         JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setBackground(UIConstants.BACKGROUND_COLOR);
+        tabbedPane.setBackground(UIConstants.PRIMARY_COLOR_DARKER);
         tabbedPane.setForeground(UIConstants.TEXT_COLOR);
+        
+        // Custom UI to ensure colors are respected (basic approach)
+        UIManager.put("TabbedPane.selected", UIConstants.PRIMARY_COLOR);
+        UIManager.put("TabbedPane.contentAreaColor", UIConstants.BACKGROUND_COLOR);
         
         tabbedPane.addTab("Send Invitation", createSendTab());
         tabbedPane.addTab("Pending Invitations", createPendingTab());
