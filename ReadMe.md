@@ -300,6 +300,12 @@ javac -d bin -sourcepath src src/mini/chess/game/tests/TestRunner.java
 java -cp bin mini.chess.game.tests.TestRunner
 ```
 
+### Running the Executable
+An executable version of the game has been created. You can find it at:
+`output/MiniChess/build/MiniChess/MiniChess.exe`
+
+Simply double-click the `.exe` file to launch the game without needing the command line.
+
 ---
 
 ## 📖 How to Use
