@@ -172,6 +172,26 @@ public class GameUI extends JFrame {
         buttonPanel.add(exitBtn);
 
         panel.add(buttonPanel, gbc);
+
+        // Add DB Connection Info
+        gbc.gridy++;
+        gbc.insets = new Insets(20, 10, 5, 10);
+        String dbUrl = mini.chess.game.db.DBConnection.getDbUrl();
+        String host = "Unknown";
+        try {
+            java.net.URI uri = new java.net.URI(dbUrl.substring(5)); // remove jdbc:
+            host = uri.getHost();
+        } catch (Exception e) {
+            if (dbUrl.contains("localhost")) host = "localhost";
+            else if (dbUrl.contains("127.0.0.1")) host = "127.0.0.1";
+        }
+        
+        JLabel dbLabel = new JLabel("DB Connected to: " + host);
+        dbLabel.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        dbLabel.setForeground(java.awt.Color.GRAY);
+        dbLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(dbLabel, gbc);
+
         return panel;
     }
 

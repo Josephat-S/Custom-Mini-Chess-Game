@@ -29,6 +29,10 @@ public class DBConnection {
 
     private static Connection instance = null;
 
+    public static String getDbUrl() {
+        return url;
+    }
+
     public static synchronized Connection getConnection() throws SQLException {
         try {
             if (instance == null || instance.isClosed() || !instance.isValid(2)) {
@@ -39,6 +43,7 @@ public class DBConnection {
                 }
                 instance = DriverManager.getConnection(url, user, password);
                 instance.setAutoCommit(false);
+                System.out.println("Database connected to: " + url);
             }
         } catch (SQLException e) {
             // If validation fails, try to reconnect once
