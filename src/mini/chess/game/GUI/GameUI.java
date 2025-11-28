@@ -249,7 +249,14 @@ public class GameUI extends JFrame {
             return;
         }
 
-        GameBoardPanel gameBoardPanel = new GameBoardPanel(res.gameId, res.playerId, board, isAI);
+        GameBoardPanel gameBoardPanel = new GameBoardPanel(
+            res.gameId, 
+            res.playerId, 
+            board, 
+            isAI, 
+            () -> cardLayout.show(mainPanel, "MENU"), // onExit
+            () -> cardLayout.show(mainPanel, "MENU")  // onPlayAgain
+        );
         String card = "GAME_" + res.gameId;
         mainPanel.add(gameBoardPanel, card);
         cardLayout.show(mainPanel, card);
@@ -296,7 +303,14 @@ public class GameUI extends JFrame {
             int gameId = Integer.parseInt(selected.split(": ")[1]);
             Board board = GameDataManager.loadGameById(gameId);
             if (board != null) {
-                GameBoardPanel gb = new GameBoardPanel(gameId, 0, board, false);
+                GameBoardPanel gb = new GameBoardPanel(
+                    gameId, 
+                    0, 
+                    board, 
+                    false,
+                    () -> cardLayout.show(mainPanel, "MENU"), // onExit
+                    () -> cardLayout.show(mainPanel, "MENU")  // onPlayAgain
+                );
                 String card = "GAME_" + gameId;
                 mainPanel.add(gb, card);
                 cardLayout.show(mainPanel, card);

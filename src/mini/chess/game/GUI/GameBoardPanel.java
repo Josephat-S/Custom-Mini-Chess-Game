@@ -51,25 +51,28 @@ public class GameBoardPanel extends JPanel {
     private final int opponentPlayerId;
     private Thread lanPollThread;
     private int lastGameStateId = 0;
+    
+    private final Runnable onExit;
+    private final Runnable onPlayAgain;
 
-    public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI) {
-        this(gameId, playerId, initialBoard, null, null, isAI, -1, -1, false, -1);
+    public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI, Runnable onExit, Runnable onPlayAgain) {
+        this(gameId, playerId, initialBoard, null, null, isAI, -1, -1, false, -1, onExit, onPlayAgain);
     }
 
-    public GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener) {
-        this(gameId, playerId, initialBoard, localPlayer, listener, false, -1, -1, false, -1);
+    public GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, Runnable onExit, Runnable onPlayAgain) {
+        this(gameId, playerId, initialBoard, localPlayer, listener, false, -1, -1, false, -1, onExit, onPlayAgain);
     }
     
-    public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI, int player1UserId, int player2UserId) {
-        this(gameId, playerId, initialBoard, null, null, isAI, player1UserId, player2UserId, false, -1);
+    public GameBoardPanel(int gameId, int playerId, Board initialBoard, boolean isAI, int player1UserId, int player2UserId, Runnable onExit, Runnable onPlayAgain) {
+        this(gameId, playerId, initialBoard, null, null, isAI, player1UserId, player2UserId, false, -1, onExit, onPlayAgain);
     }
     
     // LAN polling mode constructor
-    public GameBoardPanel(int gameId, int myPlayerId, int opponentPlayerId, Board initialBoard, boolean isPlayerOne) {
-        this(gameId, myPlayerId, initialBoard, null, null, false, -1, -1, true, opponentPlayerId);
+    public GameBoardPanel(int gameId, int myPlayerId, int opponentPlayerId, Board initialBoard, boolean isPlayerOne, Runnable onExit, Runnable onPlayAgain) {
+        this(gameId, myPlayerId, initialBoard, null, null, false, -1, -1, true, opponentPlayerId, onExit, onPlayAgain);
     }
 
-    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode, int p1UserId, int p2UserId, boolean lanPollingMode, int opponentPlayerId) {
+    private GameBoardPanel(int gameId, int playerId, Board initialBoard, String localPlayer, MoveListener listener, boolean aiMode, int p1UserId, int p2UserId, boolean lanPollingMode, int opponentPlayerId, Runnable onExit, Runnable onPlayAgain) {
         this.gameId = gameId;
         this.playerId = playerId;
         this.board = initialBoard != null ? initialBoard : new Board();
@@ -82,6 +85,8 @@ public class GameBoardPanel extends JPanel {
         this.gameStartTime = System.currentTimeMillis();
         this.player1UserId = p1UserId;
         this.player2UserId = p2UserId;
+        this.onExit = onExit;
+        this.onPlayAgain = onPlayAgain;
         
         // Get player names from database if available
         if (p1UserId != -1) {
@@ -205,8 +210,12 @@ public class GameBoardPanel extends JPanel {
                     "Exit Game",
                     JOptionPane.YES_NO_OPTION);
             if (choice == JOptionPane.YES_OPTION) {
-                Window window = SwingUtilities.getWindowAncestor(this);
-                if (window instanceof JFrame f) f.dispose();
+                if (onExit != null) {
+                    onExit.run();
+                } else {
+                    Window window = SwingUtilities.getWindowAncestor(this);
+                    if (window instanceof JFrame f) f.dispose();
+                }
             }
         });
         exitButton.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -565,18 +574,8 @@ public class GameBoardPanel extends JPanel {
                     moveCounter,
                     duration,
                     winnerPieces,
-                    null,  // Play again - not implemented here
-                    () -> {
-                        // Return to main menu
-                        Container parent = this.getParent();
-                        if (parent instanceof JPanel) {
-                            Container grandParent = parent.getParent();
-                            if (grandParent instanceof JPanel) {
-                                // Navigate to MAIN_MENU card
-                                ((CardLayout)((JPanel)grandParent).getLayout()).show((Container)grandParent, "MAIN_MENU");
-                            }
-                        }
-                    }
+                    onPlayAgain,
+                    onExit
                 );
                 dialog.setVisible(true);
             }

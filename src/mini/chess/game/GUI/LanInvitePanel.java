@@ -295,12 +295,21 @@ public class LanInvitePanel extends JPanel {
         int[] playerIds = LanInviteManager.getPlayerIds(gameId);
         boolean isPlayerOne = (playerIds != null && myPlayerId == playerIds[0]);
         
+        Runnable returnToMenu = () -> {
+            Container parent = getParent();
+            if (parent != null && parent.getLayout() instanceof CardLayout) {
+                ((CardLayout) parent.getLayout()).show(parent, "MENU");
+            }
+        };
+
         GameBoardPanel gameBoardPanel = new GameBoardPanel(
             gameId, 
             myPlayerId, 
             opponentPlayerId,
             board,
-            isPlayerOne
+            isPlayerOne,
+            returnToMenu,
+            returnToMenu
         );
         
         // Trigger callback to switch to game board
